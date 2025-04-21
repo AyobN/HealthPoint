@@ -20,6 +20,18 @@ const users = [
   { id: 5, username: "labtech1", password: "lab123", role: "labtechnician" },
 ];
 
+const patients = [
+  { id: 1, name: "John Doe" },
+  { id: 2, name: "Alice Smith" },
+];
+
+const doctors = [
+  { id: 1, name: "Dr. House" },
+  { id: 2, name: "Dr. Wilson" },
+];
+
+const appointments = []; // Temporary in-memory store
+
 // Login route
 app.post("/api/login", (req, res) => {
   const { username, password, loginType } = req.body;
@@ -47,6 +59,36 @@ app.post("/api/login", (req, res) => {
   }
 
   res.json({ success: true, userId: user.id, role: user.role });
+});
+
+app.get("/api/patients", (req, res) => {
+  res.json(patients);
+});
+
+app.get("/api/doctors", (req, res) => {
+  res.json(doctors);
+});
+
+app.post("/api/appointments", (req, res) => {
+  const { patientId, doctorId, dateTime } = req.body;
+
+  if (!patientId || !doctorId || !dateTime) {
+    return res.status(400).json({ success: false, message: "Missing data" });
+  }
+
+  const newAppointment = {
+    id: appointments.length + 1,
+    patientId,
+    doctorId,
+    dateTime,
+  };
+
+  appointments.push(newAppointment);
+  res.json({ success: true, appointment: newAppointment });
+});
+
+app.get("/api/appointments", (req, res) => {
+  res.json(appointments);
 });
 
 // Ping route
