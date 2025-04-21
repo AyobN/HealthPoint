@@ -32,7 +32,7 @@ function App() {
         <Route path="/doctor" element={<DoctorView user={user} />} />
         <Route path="/nurse" element={<NurseView user={user} />} />
         <Route
-          path="/receptionist"
+          path="/receptionist/*"
           element={<ReceptionistView user={user} />}
         />
         <Route path="/labtechnician" element={<LabTechView user={user} />} />

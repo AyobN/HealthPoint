@@ -1,17 +1,15 @@
-// server/index.js
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 
 dotenv.config();
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 6969;
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 
-// Dummy users for testing
+// Dummy user login accounts
 const users = [
   { id: 1, username: "patient1", password: "pass123", role: "patient" },
   { id: 2, username: "nurse1", password: "nurse123", role: "nurse" },
@@ -20,22 +18,45 @@ const users = [
   { id: 5, username: "labtech1", password: "lab123", role: "labtechnician" },
 ];
 
+// Dummy patients
 const patients = [
   { id: 1, name: "John Doe" },
   { id: 2, name: "Alice Smith" },
 ];
 
-const doctors = [
-  { id: 1, name: "Dr. House" },
-  { id: 2, name: "Dr. Wilson" },
+let nextStaffId = 3;
+
+let doctors = [
+  {
+    staff_id: 1,
+    license_no: "D12345",
+    first_name: "Gregory",
+    last_name: "House",
+    email: "house@example.com",
+    username: "house",
+    password: "doc123",
+    specialty: "Diagnostics",
+  },
+  {
+    staff_id: 2,
+    license_no: "D67890",
+    first_name: "James",
+    last_name: "Wilson",
+    email: "wilson@example.com",
+    username: "wilson",
+    password: "doc123",
+    specialty: "Oncology",
+  },
 ];
 
-const appointments = []; // Temporary in-memory store
+// Dummy appointments
+let appointments = [];
 
-// Login route
+// ===================
+// LOGIN ROUTE
+// ===================
 app.post("/api/login", (req, res) => {
   const { username, password, loginType } = req.body;
-
   const user = users.find(
     (u) => u.username === username && u.password === password
   );
@@ -61,12 +82,87 @@ app.post("/api/login", (req, res) => {
   res.json({ success: true, userId: user.id, role: user.role });
 });
 
+// ===================
+// PATIENT ROUTES
+// ===================
 app.get("/api/patients", (req, res) => {
   res.json(patients);
 });
 
+// ===================
+// DOCTOR ROUTES
+// ===================
 app.get("/api/doctors", (req, res) => {
   res.json(doctors);
+});
+
+app.get("/api/doctors/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const doctor = doctors.find((d) => d.staff_id === id);
+  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+  res.json(doctor);
+});
+
+app.post("/api/doctors", (req, res) => {
+  const {
+    license_no,
+    first_name,
+    last_name,
+    email,
+    username,
+    password,
+    specialty,
+  } = req.body;
+
+  if (
+    !license_no ||
+    !first_name ||
+    !last_name ||
+    !email ||
+    !username ||
+    !password ||
+    !specialty
+  ) {
+    return res.status(400).json({ success: false, message: "Missing fields" });
+  }
+
+  const newDoctor = {
+    staff_id: nextStaffId++,
+    license_no,
+    first_name,
+    last_name,
+    email,
+    username,
+    password,
+    specialty,
+  };
+
+  doctors.push(newDoctor);
+  res.json({ success: true, doctor: newDoctor });
+});
+
+app.put("/api/doctors/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = doctors.findIndex((d) => d.staff_id === id);
+  if (index === -1)
+    return res.status(404).json({ message: "Doctor not found" });
+
+  const updated = { ...doctors[index], ...req.body };
+  doctors[index] = updated;
+  res.json({ success: true, doctor: updated });
+});
+
+app.delete("/api/doctors/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  doctors = doctors.filter((d) => d.staff_id !== id);
+  res.json({ success: true });
+});
+
+// ===================
+// APPOINTMENT ROUTES
+// ===================
+app.get("/api/appointments", (req, res) => {
+  res.json(appointments);
 });
 
 app.post("/api/appointments", (req, res) => {
@@ -87,11 +183,17 @@ app.post("/api/appointments", (req, res) => {
   res.json({ success: true, appointment: newAppointment });
 });
 
-app.get("/api/appointments", (req, res) => {
-  res.json(appointments);
+app.get("/api/doctors/:id/appointments", (req, res) => {
+  const doctorId = parseInt(req.params.id);
+  const doctorAppointments = appointments.filter(
+    (a) => a.doctorId === doctorId
+  );
+  res.json(doctorAppointments);
 });
 
-// Ping route
+// ===================
+// ROOT ROUTE
+// ===================
 app.get("/", (req, res) => {
   res.send("Hospital backend running.");
 });
