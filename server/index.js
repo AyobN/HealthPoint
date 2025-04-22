@@ -9,6 +9,62 @@ const PORT = process.env.PORT || 6969;
 app.use(cors());
 app.use(express.json());
 
+// Dummy tests
+let nextTestId = 3;
+
+let tests = [
+  {
+    test_id: 1,
+    patient_id: 1,
+    doctor_id: 1,
+    labtech_id: null,
+    date: "2024-06-05",
+    test_name: "Blood Panel",
+    result: "",
+  },
+  {
+    test_id: 2,
+    patient_id: 2,
+    doctor_id: 2,
+    labtech_id: 5,
+    date: "2024-06-10",
+    test_name: "X-ray",
+    result: "Fracture detected",
+  },
+];
+
+// Dummy records
+
+let nextRecordId = 3;
+
+let records = [
+  {
+    record_id: 1,
+    patient_id: 1,
+    doctor_id: 1,
+    date: "2024-06-01",
+    symptoms: "Cough, Fever",
+    diagnosis: "Bronchitis",
+    notes: "Prescribed antibiotics. Follow up in 2 weeks.",
+  },
+  {
+    record_id: 2,
+    patient_id: 2,
+    doctor_id: 2,
+    date: "2024-06-02",
+    symptoms: "Headache, Nausea",
+    diagnosis: "Migraine",
+    notes: "Recommended hydration and rest.",
+  },
+];
+
+// Dummy triage
+let triageData = [
+  { patient_id: 1, bp: "120/80", heart_rate: 72, rating: "Stable" },
+  { patient_id: 2, bp: "140/90", heart_rate: 88, rating: "Elevated" },
+  { patient_id: 1, bp: "115/75", heart_rate: 70, rating: "Stable" }, // multiple entries okay
+];
+
 // Dummy bills
 let nextBillId = 3;
 
@@ -147,33 +203,69 @@ let nextStaffId = 3;
 let doctors = [
   {
     staff_id: 1,
+    username: "house",
+    password: "doc123",
     license_no: "D12345",
     first_name: "Gregory",
     last_name: "House",
     email: "house@example.com",
-    username: "house",
-    password: "doc123",
     specialty: "Diagnostics",
     schedule: {
       days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
       startTime: "09:00",
       endTime: "17:00",
     },
+    patients: [1],
   },
   {
     staff_id: 2,
+    username: "wilson",
+    password: "doc456",
     license_no: "D67890",
     first_name: "James",
     last_name: "Wilson",
     email: "wilson@example.com",
-    username: "wilson",
-    password: "doc123",
     specialty: "Oncology",
     schedule: {
       days: ["Monday", "Wednesday", "Friday"],
       startTime: "10:00",
       endTime: "16:00",
     },
+    patients: [2],
+  },
+];
+
+let nurses = [
+  {
+    staff_id: 3,
+    username: "nursejoy",
+    password: "nurse123",
+    first_name: "Joy",
+    last_name: "Smith",
+    email: "nurse.joy@example.com",
+  },
+];
+
+let labtechs = [
+  {
+    staff_id: 5,
+    username: "labtech1",
+    password: "lab123",
+    first_name: "Leo",
+    last_name: "Green",
+    email: "leo.green@hospital.com",
+  },
+];
+
+// Dummy lab techs
+let receptionists = [
+  {
+    staff_id: 4,
+    username: "reception1",
+    password: "rec123",
+    first_name: "Emma",
+    last_name: "Brown",
+    email: "emma.brown@hospital.com",
   },
 ];
 
@@ -190,6 +282,10 @@ let rooms = [
 let roomAssignments = [
   { room_no: 101, patient_id: 2 }, // Alice is in Room 101
 ];
+
+app.get("/api/roomassignments", (req, res) => {
+  res.json(roomAssignments);
+});
 
 app.post("/api/patients/:id/admit", (req, res) => {
   const id = parseInt(req.params.id);
@@ -220,11 +316,22 @@ app.post("/api/patients/:id/admit", (req, res) => {
   patient.status = "inpatient";
 
   if (!patient.doctor_id) {
-    // Assign random doctor
-    const availableDoctors = doctors.map((d) => d.staff_id);
+    const availableDoctors = doctors.filter(
+      (d) => !d.patients.includes(patient.patient_id)
+    );
+    if (availableDoctors.length === 0) {
+      return res
+        .status(400)
+        .json({ message: "No doctors available to assign." });
+    }
+
     const randomDoctor =
       availableDoctors[Math.floor(Math.random() * availableDoctors.length)];
-    patient.doctor_id = randomDoctor;
+    patient.doctor_id = randomDoctor.staff_id;
+
+    if (!randomDoctor.patients.includes(patient.patient_id)) {
+      randomDoctor.patients.push(patient.patient_id);
+    }
   }
 
   res.json({ success: true, room_no: availableRoom.room_no });
@@ -278,18 +385,34 @@ app.post("/api/login", (req, res) => {
     });
   }
 
-  // staff login fallback
-  const user = users.find(
-    (u) => u.username === username && u.password === password
-  );
-  if (!user) return res.status(401).json({ message: "Invalid credentials" });
+  if (loginType === "staff") {
+    const check = (arr, role) => {
+      const match = arr.find(
+        (u) => u.username === username && u.password === password
+      );
+      return match ? { match, role } : null;
+    };
 
-  return res.json({
-    success: true,
-    userId: user.id,
-    role: user.role,
-    username: user.username,
-  });
+    const results = [
+      check(doctors, "doctor"),
+      check(nurses, "nurse"),
+      check(receptionists, "receptionist"),
+      check(labtechs, "labtechnician"),
+    ];
+
+    const found = results.find((r) => r !== null);
+
+    if (!found) return res.status(401).json({ message: "Invalid credentials" });
+
+    return res.json({
+      success: true,
+      userId: found.match.staff_id,
+      role: found.role,
+      username: found.match.username,
+    });
+  }
+
+  return res.status(400).json({ message: "Invalid login type" });
 });
 
 // ===================
@@ -492,6 +615,17 @@ app.get("/api/doctors/:id/availability", (req, res) => {
   res.json(availableSlots);
 });
 
+app.get("/api/doctors/:id/patients", (req, res) => {
+  const id = parseInt(req.params.id);
+  const doctor = doctors.find((d) => d.staff_id === id);
+  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
+
+  const doctorPatients = patients.filter((p) =>
+    doctor.patients.includes(p.patient_id)
+  );
+  res.json(doctorPatients);
+});
+
 // ===================
 // APPOINTMENT ROUTES
 // ===================
@@ -685,4 +819,124 @@ app.get("/", (req, res) => {
 
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+// Triage routes
+app.get("/api/triage", (req, res) => {
+  res.json(triageData);
+});
+
+app.post("/api/triage", (req, res) => {
+  const { patient_id, bp, heart_rate, rating } = req.body;
+
+  if (!patient_id || !bp || !heart_rate || !rating) {
+    return res.status(400).json({ message: "Missing fields." });
+  }
+
+  const newTriage = { patient_id, bp, heart_rate, rating };
+  triageData.push(newTriage);
+  res.json({ success: true, triage: newTriage });
+});
+
+// ========== Patient Records API ==========
+
+// Get all records
+app.get("/api/records", (req, res) => {
+  res.json(records);
+});
+
+// Get records by patient ID
+app.get("/api/records/patient/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const result = records.filter((r) => r.patient_id === id);
+  res.json(result);
+});
+
+// Add a new patient record
+app.post("/api/records", (req, res) => {
+  const { patient_id, doctor_id, date, symptoms, diagnosis, notes } = req.body;
+
+  if (!patient_id || !doctor_id || !date || !symptoms || !diagnosis) {
+    return res.status(400).json({ message: "Missing required fields" });
+  }
+
+  const newRecord = {
+    record_id: nextRecordId++,
+    patient_id,
+    doctor_id,
+    date,
+    symptoms,
+    diagnosis,
+    notes,
+  };
+
+  records.push(newRecord);
+  res.json({ success: true, record: newRecord });
+});
+
+// ========== Patient Tests API ==========
+
+// Get all tests
+app.get("/api/tests", (req, res) => {
+  res.json(tests);
+});
+
+// Get tests by patient ID
+app.get("/api/tests/patient/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const result = tests.filter((t) => t.patient_id === id);
+  res.json(result);
+});
+
+// Add a test
+app.post("/api/tests", (req, res) => {
+  const { patient_id, doctor_id, date, test_name, result } = req.body;
+
+  //console.log("TEST SUBMISSION:", req.body);
+
+  if (!patient_id || !doctor_id || !date || !test_name) {
+    return res.status(400).json({ message: "Missing required fields." });
+  }
+
+  const newTest = {
+    test_id: nextTestId++,
+    patient_id,
+    doctor_id,
+    date,
+    test_name,
+    result: result || "Pending",
+  };
+
+  tests.push(newTest);
+  res.json({ success: true, test: newTest });
+});
+
+// Get all tests with no result (pending)
+app.get("/api/tests/pending", (req, res) => {
+  const pending = tests.filter((t) => !t.result || t.result.trim() === "");
+  res.json(pending);
+});
+
+// Get all completed tests
+app.get("/api/tests/completed", (req, res) => {
+  const done = tests.filter((t) => t.result && t.result.trim() !== "");
+  res.json(done);
+});
+
+// Update a test result + assign labtech_id
+app.put("/api/tests/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const { result, labtech_id } = req.body;
+
+  const index = tests.findIndex((t) => t.test_id === id);
+  if (index === -1) return res.status(404).json({ message: "Test not found" });
+
+  if (!result || !labtech_id) {
+    return res.status(400).json({ message: "Missing result or labtech_id" });
+  }
+
+  tests[index].result = result;
+  tests[index].labtech_id = labtech_id;
+
+  res.json({ success: true, test: tests[index] });
 });
