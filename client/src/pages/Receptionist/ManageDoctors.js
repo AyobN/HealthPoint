@@ -4,30 +4,40 @@ import { Link } from "react-router-dom";
 
 const ManageDoctors = () => {
   const [doctors, setDoctors] = useState([]);
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
-    fetchDoctors();
+    axios
+      .get("http://localhost:6969/api/doctors")
+      .then((res) => setDoctors(res.data));
   }, []);
 
-  const fetchDoctors = async () => {
-    const res = await axios.get("http://localhost:6969/api/doctors");
-    setDoctors(res.data);
-  };
+  const filtered = doctors.filter((d) =>
+    `${d.first_name} ${d.last_name} ${d.email} ${d.specialty}`
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  );
 
   return (
     <div style={{ padding: "1rem" }}>
       <h2>Manage Doctors</h2>
 
-      {/* Add Doctor Button */}
       <div style={{ marginBottom: "1rem" }}>
         <Link to="/receptionist/doctors/new">
           <button>Add Doctor</button>
         </Link>
       </div>
 
-      {/* List of Doctors */}
+      <input
+        type="text"
+        placeholder="Search doctors by name, email, or specialty..."
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        style={{ marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+      />
+
       <ul style={{ listStyle: "none", padding: 0 }}>
-        {doctors.map((doc) => (
+        {filtered.map((doc) => (
           <li
             key={doc.staff_id}
             style={{

@@ -5,6 +5,11 @@ import ManageRooms from "./Receptionist/ManageRooms";
 import ManageAppointments from "./Receptionist/ManageAppointments";
 import ManageBilling from "./Receptionist/ManageBilling";
 import DoctorForm from "./Receptionist/DoctorForm";
+import PatientForm from "./Receptionist/PatientForm";
+import RoomForm from "./Receptionist/RoomForm";
+import AppointmentListByPatient from "./Receptionist/Appointments/AppointmentListByPatient";
+import AppointmentListByDoctor from "./Receptionist/Appointments/AppointmentListByDoctor";
+import ScheduleAppointment from "./Receptionist/Appointments/ScheduleAppointment";
 
 const ReceptionistView = ({ user }) => {
   return (
@@ -38,6 +43,26 @@ const ReceptionistView = ({ user }) => {
           <Route path="" element={<p>Please select a section.</p>} />
           <Route path="doctors/new" element={<DoctorForm />} />
           <Route path="doctors/:id/edit" element={<DoctorForm />} />
+          <Route path="patients" element={<ManagePatients />} />
+          <Route path="patients/new" element={<PatientForm />} />
+          <Route path="patients/:id/edit" element={<PatientForm />} />
+          <Route path="rooms" element={<ManageRooms />} />
+          <Route path="rooms/new" element={<RoomForm />} />
+          <Route path="rooms/:room_no/edit" element={<RoomForm />} />
+          <Route path="appointments" element={<ManageAppointments />} />
+          <Route
+            path="appointments/view/patient"
+            element={<AppointmentListByPatient />}
+          />
+          <Route
+            path="appointments/view/doctor"
+            element={<AppointmentListByDoctor />}
+          />
+          <Route path="appointments" element={<ManageAppointments />} />
+          <Route
+            path="appointments/schedule"
+            element={<ScheduleAppointment />}
+          />
         </Routes>
       </main>
     </div>
