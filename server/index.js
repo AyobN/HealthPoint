@@ -246,6 +246,7 @@ let nurses = [
   },
 ];
 
+// Dummy lab techs
 let labtechs = [
   {
     staff_id: 5,
@@ -255,9 +256,16 @@ let labtechs = [
     last_name: "Green",
     email: "leo.green@hospital.com",
   },
+  {
+    staff_id: 6,
+    username: "labtech2",
+    password: "lab456",
+    first_name: "Sara",
+    last_name: "Stone",
+    email: "sara.stone@hospital.com",
+  },
 ];
 
-// Dummy lab techs
 let receptionists = [
   {
     staff_id: 4,
@@ -939,4 +947,9 @@ app.put("/api/tests/:id", (req, res) => {
   tests[index].labtech_id = labtech_id;
 
   res.json({ success: true, test: tests[index] });
+});
+
+// lab tech route
+app.get("/api/labtechs", (req, res) => {
+  res.json(labtechs);
 });
