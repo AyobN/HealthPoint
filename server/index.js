@@ -9,6 +9,97 @@ const PORT = process.env.PORT || 6969;
 app.use(cors());
 app.use(express.json());
 
+// Dummy bills
+let nextBillId = 3;
+
+let bills = [
+  {
+    bill_id: 1,
+    patient_id: 1,
+    appointment_id: 1,
+    amount: 150.0,
+    status: "Unpaid",
+    description: "Initial consultation",
+    issued_date: "2024-05-01T10:00",
+  },
+  {
+    bill_id: 2,
+    patient_id: 2,
+    appointment_id: 2,
+    amount: 200.0,
+    status: "Paid",
+    description: "Follow-up exam",
+    issued_date: "2024-05-03T11:00",
+  },
+];
+
+// ========== Billing Routes ==========
+
+// Get all bills
+app.get("/api/bills", (req, res) => {
+  res.json(bills);
+});
+
+// Get bills by patient ID
+app.get("/api/bills/patient/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const patientBills = bills.filter((b) => b.patient_id === id);
+  res.json(patientBills);
+});
+
+// Get single bill by bill ID
+app.get("/api/bills/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const bill = bills.find((b) => b.bill_id === id);
+  if (!bill) return res.status(404).json({ message: "Bill not found" });
+  res.json(bill);
+});
+
+// Create a new bill
+app.post("/api/bills", (req, res) => {
+  const {
+    patient_id,
+    appointment_id,
+    amount,
+    description,
+    status = "Unpaid",
+  } = req.body;
+
+  if (!patient_id || !amount || !description) {
+    return res.status(400).json({ message: "Missing required fields." });
+  }
+
+  const newBill = {
+    bill_id: nextBillId++,
+    patient_id,
+    appointment_id: appointment_id || null,
+    amount: parseFloat(amount),
+    status,
+    description,
+    issued_date: new Date().toISOString(),
+  };
+
+  bills.push(newBill);
+  res.json({ success: true, bill: newBill });
+});
+
+// Update a bill (e.g., mark as paid)
+app.put("/api/bills/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const index = bills.findIndex((b) => b.bill_id === id);
+  if (index === -1) return res.status(404).json({ message: "Bill not found" });
+
+  bills[index] = { ...bills[index], ...req.body };
+  res.json({ success: true, bill: bills[index] });
+});
+
+// Delete a bill (optional)
+app.delete("/api/bills/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  bills = bills.filter((b) => b.bill_id !== id);
+  res.json({ success: true });
+});
+
 // Dummy user login accounts
 const users = [
   { id: 1, username: "patient1", password: "pass123", role: "patient" },
@@ -23,6 +114,8 @@ let nextPatientId = 3;
 let patients = [
   {
     patient_id: 1,
+    username: "patient1",
+    password: "pass123",
     first_name: "John",
     last_name: "Doe",
     email: "john@example.com",
@@ -30,9 +123,13 @@ let patients = [
     dob: "1990-01-01",
     gender: "Male",
     insurance: "Blue Cross",
+    status: "outpatient",
+    doctor_id: 1,
   },
   {
     patient_id: 2,
+    username: "patient2",
+    password: "pass456",
     first_name: "Alice",
     last_name: "Smith",
     email: "alice@example.com",
@@ -40,6 +137,8 @@ let patients = [
     dob: "1985-07-15",
     gender: "Female",
     insurance: "Sun Life",
+    status: "inpatient",
+    doctor_id: 2,
   },
 ];
 
@@ -88,7 +187,48 @@ let rooms = [
 ];
 
 // Dummy room assignment
-let roomAssignments = [{ room_no: 101, patient_id: 1 }];
+let roomAssignments = [
+  { room_no: 101, patient_id: 2 }, // Alice is in Room 101
+];
+
+app.post("/api/patients/:id/admit", (req, res) => {
+  const id = parseInt(req.params.id);
+  const patient = patients.find((p) => p.patient_id === id);
+  if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+  if (patient.status === "inpatient") {
+    return res.status(400).json({ message: "Patient is already admitted." });
+  }
+
+  // Find available room
+  const getOccupancy = (room_no) =>
+    roomAssignments.filter((r) => r.room_no === room_no).length;
+
+  let availableRoom = rooms.find(
+    (r) => r.type === "Waiting Room" && getOccupancy(r.room_no) < r.capacity
+  );
+
+  if (!availableRoom) {
+    availableRoom = rooms.find((r) => getOccupancy(r.room_no) < r.capacity);
+  }
+
+  if (!availableRoom) {
+    return res.status(400).json({ message: "No rooms available." });
+  }
+
+  roomAssignments.push({ room_no: availableRoom.room_no, patient_id: id });
+  patient.status = "inpatient";
+
+  if (!patient.doctor_id) {
+    // Assign random doctor
+    const availableDoctors = doctors.map((d) => d.staff_id);
+    const randomDoctor =
+      availableDoctors[Math.floor(Math.random() * availableDoctors.length)];
+    patient.doctor_id = randomDoctor;
+  }
+
+  res.json({ success: true, room_no: availableRoom.room_no });
+});
 
 app.get("/api/rooms/assignments", (req, res) => {
   const counts = {};
@@ -100,34 +240,56 @@ app.get("/api/rooms/assignments", (req, res) => {
   res.json(counts);
 });
 
+app.post("/api/patients/:id/discharge", (req, res) => {
+  const id = parseInt(req.params.id);
+  const patient = patients.find((p) => p.patient_id === id);
+  if (!patient) return res.status(404).json({ message: "Patient not found" });
+
+  if (patient.status !== "inpatient") {
+    return res
+      .status(400)
+      .json({ message: "Patient is not currently admitted." });
+  }
+
+  roomAssignments = roomAssignments.filter((r) => r.patient_id !== id);
+  patient.status = "outpatient";
+
+  res.json({ success: true });
+});
+
 // ===================
 // LOGIN ROUTE
 // ===================
 app.post("/api/login", (req, res) => {
   const { username, password, loginType } = req.body;
+
+  if (loginType === "patient") {
+    const patient = patients.find(
+      (p) => p.username === username && p.password === password
+    );
+    if (!patient)
+      return res.status(401).json({ message: "Invalid credentials" });
+
+    return res.json({
+      success: true,
+      userId: patient.patient_id,
+      role: "patient",
+      username: patient.username,
+    });
+  }
+
+  // staff login fallback
   const user = users.find(
     (u) => u.username === username && u.password === password
   );
+  if (!user) return res.status(401).json({ message: "Invalid credentials" });
 
-  if (!user) {
-    return res
-      .status(401)
-      .json({ success: false, message: "Invalid credentials" });
-  }
-
-  if (loginType === "patient" && user.role !== "patient") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Not a patient login." });
-  }
-
-  if (loginType === "staff" && user.role === "patient") {
-    return res
-      .status(403)
-      .json({ success: false, message: "Not a staff login." });
-  }
-
-  res.json({ success: true, userId: user.id, role: user.role });
+  return res.json({
+    success: true,
+    userId: user.id,
+    role: user.role,
+    username: user.username,
+  });
 });
 
 // ===================

@@ -16,14 +16,22 @@ const PatientForm = () => {
     dob: "",
     gender: "",
     insurance: "",
+    status: "outpatient",
+    doctor_id: "",
   });
 
+  const [doctors, setDoctors] = useState([]);
+
   useEffect(() => {
+    axios
+      .get("http://localhost:6969/api/doctors")
+      .then((res) => setDoctors(res.data));
+
     if (isEdit) {
-      axios
-        .get(`http://localhost:6969/api/patients/${id}`)
-        .then((res) => setForm(res.data))
-        .catch((err) => console.error("Patient not found"));
+      axios.get(`http://localhost:6969/api/patients`).then((res) => {
+        const match = res.data.find((p) => p.patient_id === parseInt(id));
+        if (match) setForm(match);
+      });
     }
   }, [id, isEdit]);
 
@@ -33,15 +41,19 @@ const PatientForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (isEdit) {
       await axios.put(`http://localhost:6969/api/patients/${id}`, form);
     } else {
       await axios.post("http://localhost:6969/api/patients", form);
     }
+
     navigate("/receptionist/patients");
   };
 
-  const handleCancel = () => navigate("/receptionist/patients");
+  const handleCancel = () => {
+    navigate("/receptionist/patients");
+  };
 
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this patient?"))
@@ -126,7 +138,7 @@ const PatientForm = () => {
           </select>
         </div>
         <div>
-          <label>Insurance Provider:</label>
+          <label>Insurance:</label>
           <input
             name="insurance"
             value={form.insurance}
@@ -134,6 +146,23 @@ const PatientForm = () => {
             required
           />
         </div>
+        <div>
+          <label>Doctor:</label>
+          <select
+            name="doctor_id"
+            value={form.doctor_id}
+            onChange={handleChange}
+            required
+          >
+            <option value="">Select a doctor</option>
+            {doctors.map((d) => (
+              <option key={d.staff_id} value={d.staff_id}>
+                {d.first_name} {d.last_name} (ID: {d.staff_id})
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
           <button type="submit">
             {isEdit ? "Save Changes" : "Add Patient"}

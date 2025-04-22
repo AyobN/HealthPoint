@@ -18,6 +18,7 @@ function App() {
   return (
     <Router>
       <Routes>
+        {/* Login */}
         <Route
           path="/"
           element={
@@ -28,14 +29,36 @@ function App() {
             )
           }
         />
-        <Route path="/patient" element={<PatientView user={user} />} />
-        <Route path="/doctor" element={<DoctorView user={user} />} />
-        <Route path="/nurse" element={<NurseView user={user} />} />
+
+        {/* Patient Portal */}
+        <Route
+          path="/patient/*"
+          element={<PatientView user={user} setUser={setUser} />}
+        />
+
+        {/* Doctor Portal */}
+        <Route
+          path="/doctor/*"
+          element={<DoctorView user={user} setUser={setUser} />}
+        />
+
+        {/* Nurse Portal */}
+        <Route
+          path="/nurse/*"
+          element={<NurseView user={user} setUser={setUser} />}
+        />
+
+        {/* Receptionist Portal */}
         <Route
           path="/receptionist/*"
-          element={<ReceptionistView user={user} />}
+          element={<ReceptionistView user={user} setUser={setUser} />}
         />
-        <Route path="/labtechnician" element={<LabTechView user={user} />} />
+
+        {/* Lab Technician Portal */}
+        <Route
+          path="/labtechnician/*"
+          element={<LabTechView user={user} setUser={setUser} />}
+        />
       </Routes>
     </Router>
   );
