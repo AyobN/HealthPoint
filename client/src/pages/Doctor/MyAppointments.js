@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const MyAppointments = ({ user }) => {
   const [appointments, setAppointments] = useState([]);
@@ -8,22 +8,20 @@ const MyAppointments = ({ user }) => {
   useEffect(() => {
     const fetchData = async () => {
       const [appointmentsRes, patientsRes] = await Promise.all([
-        axios.get("http://localhost:6969/api/appointments"),
-        axios.get("http://localhost:6969/api/patients"),
+        API.get("/appointments"),
+        API.get("/patients"),
       ]);
 
-      const upcoming = appointmentsRes.data.filter(
-        (a) =>
-          a.doctorId === user.userId &&
-          a.status !== "Cancelled" &&
-          new Date(a.dateTime) >= new Date()
+      setPatients(patientsRes.data);
+
+      const filtered = appointmentsRes.data.filter(
+        (a) => a.doctorId === user.userId && a.status !== "Cancelled"
       );
 
-      setAppointments(upcoming);
-      setPatients(patientsRes.data);
+      setAppointments(filtered);
     };
 
-    if (user?.userId) fetchData();
+    fetchData();
   }, [user?.userId]);
 
   const getPatient = (id) => patients.find((p) => p.patient_id === id);

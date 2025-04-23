@@ -1,49 +1,46 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
 import { Link } from "react-router-dom";
+import API from "../../api";
 
 const ManageDoctors = () => {
   const [doctors, setDoctors] = useState([]);
   const [search, setSearch] = useState("");
 
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/doctors")
-      .then((res) => setDoctors(res.data));
+    API.get("/doctors").then((res) => setDoctors(res.data));
   }, []);
 
-  const filtered = doctors.filter((d) =>
-    `${d.first_name} ${d.last_name} ${d.email} ${d.specialty}`
-      .toLowerCase()
-      .includes(search.toLowerCase())
+  const filtered = doctors.filter(
+    (d) =>
+      `${d.first_name} ${d.last_name} ${d.email}`
+        .toLowerCase()
+        .includes(search.toLowerCase()) ||
+      d.staff_id.toString().includes(search)
   );
 
   return (
     <div style={{ padding: "1rem" }}>
       <h2>Manage Doctors</h2>
-
-      <div style={{ marginBottom: "1rem" }}>
-        <Link to="/receptionist/doctors/new">
-          <button>Add Doctor</button>
-        </Link>
-      </div>
+      <Link to="/receptionist/doctors/new">
+        <button>Add Doctor</button>
+      </Link>
 
       <input
         type="text"
-        placeholder="Search doctors by name, email, or specialty..."
+        placeholder="Search by name, email, or ID..."
         value={search}
         onChange={(e) => setSearch(e.target.value)}
-        style={{ marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+        style={{ marginTop: "1rem", padding: "0.5rem", width: "100%" }}
       />
 
       <ul style={{ listStyle: "none", padding: 0 }}>
-        {filtered.map((doc) => (
+        {filtered.map((d) => (
           <li
-            key={doc.staff_id}
+            key={d.staff_id}
             style={{
               border: "1px solid #ccc",
-              marginBottom: "0.5rem",
               padding: "0.75rem",
+              marginBottom: "0.5rem",
               borderRadius: "8px",
               display: "flex",
               justifyContent: "space-between",
@@ -53,18 +50,14 @@ const ManageDoctors = () => {
           >
             <div>
               <strong>
-                {doc.first_name} {doc.last_name}
+                {d.first_name} {d.last_name}
               </strong>
               <br />
-              <small>License No: {doc.license_no}</small>
-              <br />
-              <small>Specialty: {doc.specialty}</small>
+              <small>{d.email}</small>
             </div>
-            <div style={{ display: "flex", gap: "0.5rem" }}>
-              <Link to={`/receptionist/doctors/${doc.staff_id}/edit`}>
-                <button>Manage</button>
-              </Link>
-            </div>
+            <Link to={`/receptionist/doctors/${d.staff_id}/edit`}>
+              <button>Manage</button>
+            </Link>
           </li>
         ))}
       </ul>

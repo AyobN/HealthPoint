@@ -1,39 +1,22 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import axios from "axios";
+import API from "../../../api";
 
 const BillingForm = () => {
-  const { id } = useParams(); // optional bill_id for edit
+  const { id } = useParams();
   const isEdit = Boolean(id);
   const navigate = useNavigate();
 
   const [form, setForm] = useState({
     patient_id: "",
-    appointment_id: "",
     amount: "",
-    status: "Unpaid",
     description: "",
+    status: "Unpaid",
   });
 
-  const [patients, setPatients] = useState([]);
-  const [appointments, setAppointments] = useState([]);
-  const [patientSearch, setPatientSearch] = useState("");
-  const [selectedPatient, setSelectedPatient] = useState(null);
-
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/patients")
-      .then((res) => setPatients(res.data));
-    axios
-      .get("http://localhost:6969/api/appointments")
-      .then((res) => setAppointments(res.data));
-
     if (isEdit) {
-      axios.get(`http://localhost:6969/api/bills/${id}`).then((res) => {
-        setForm(res.data);
-        const patient = res.data.patient_id;
-        setSelectedPatient(patient);
-      });
+      API.get(`/bills/${id}`).then((res) => setForm(res.data));
     }
   }, [id, isEdit]);
 
@@ -41,35 +24,15 @@ const BillingForm = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
-  const handlePatientSelect = (p) => {
-    setSelectedPatient(p.patient_id);
-    setPatientSearch(`${p.first_name} ${p.last_name}`);
-    setForm({ ...form, patient_id: p.patient_id });
-  };
-
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.patient_id || !form.amount || !form.description)
-      return alert("Missing required fields");
-
     if (isEdit) {
-      await axios.put(`http://localhost:6969/api/bills/${id}`, form);
+      await API.put(`/bills/${id}`, form);
     } else {
-      await axios.post("http://localhost:6969/api/bills", form);
+      await API.post("/bills", form);
     }
-
     navigate("/receptionist/billing");
   };
-
-  const handleCancel = () => {
-    navigate("/receptionist/billing");
-  };
-
-  const filteredPatients = patients.filter((p) =>
-    `${p.first_name} ${p.last_name}`
-      .toLowerCase()
-      .includes(patientSearch.toLowerCase())
-  );
 
   return (
     <div style={{ padding: "1rem", maxWidth: "600px" }}>
@@ -78,93 +41,39 @@ const BillingForm = () => {
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
       >
-        {!isEdit ? (
-          <div>
-            <label>Search Patient:</label>
-            <input
-              type="text"
-              value={patientSearch}
-              onChange={(e) => setPatientSearch(e.target.value)}
-              required
-            />
-            <ul
-              style={{
-                border: "1px solid #ccc",
-                maxHeight: "150px",
-                overflowY: "auto",
-              }}
-            >
-              {filteredPatients.map((p) => (
-                <li key={p.patient_id}>
-                  <button type="button" onClick={() => handlePatientSelect(p)}>
-                    {p.first_name} {p.last_name} (ID: {p.patient_id})
-                  </button>
-                </li>
-              ))}
-            </ul>
-          </div>
-        ) : (
-          <div>
-            <label>Patient:</label>
-            <p>{form.patient_id ? `ID: ${form.patient_id}` : "Unknown"}</p>
-          </div>
-        )}
-
-        <div>
-          <label>Link to Appointment (optional):</label>
-          <select
-            name="appointment_id"
-            value={form.appointment_id}
-            onChange={handleChange}
-          >
-            <option value="">None</option>
-            {appointments.map((a) => (
-              <option key={a.id} value={a.id}>
-                #{a.id} – {new Date(a.dateTime).toLocaleString()}
-              </option>
-            ))}
-          </select>
-        </div>
-
-        <div>
-          <label>Amount:</label>
-          <input
-            name="amount"
-            type="number"
-            value={form.amount}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label>Description:</label>
-          <input
-            name="description"
-            value={form.description}
-            onChange={handleChange}
-            required
-          />
-        </div>
-
-        <div>
-          <label>Status:</label>
-          <select
-            name="status"
-            value={form.status}
-            onChange={handleChange}
-            required
-          >
-            <option value="Unpaid">Unpaid</option>
-            <option value="Paid">Paid</option>
-          </select>
-        </div>
-
+        <input
+          name="patient_id"
+          placeholder="Patient ID"
+          value={form.patient_id}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="amount"
+          type="number"
+          step="0.01"
+          placeholder="Amount"
+          value={form.amount}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="description"
+          placeholder="Description"
+          value={form.description}
+          onChange={handleChange}
+          required
+        />
+        <select name="status" value={form.status} onChange={handleChange}>
+          <option value="Unpaid">Unpaid</option>
+          <option value="Paid">Paid</option>
+        </select>
         <div style={{ display: "flex", gap: "1rem" }}>
-          <button type="submit">
-            {isEdit ? "Save Changes" : "Create Bill"}
-          </button>
-          <button type="button" onClick={handleCancel}>
+          <button type="submit">Save</button>
+          <button
+            type="button"
+            onClick={() => navigate("/receptionist/billing")}
+          >
             Cancel
           </button>
         </div>

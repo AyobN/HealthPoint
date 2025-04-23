@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const CompletedTests = () => {
   const [tests, setTests] = useState([]);
@@ -11,24 +11,24 @@ const CompletedTests = () => {
     const fetchData = async () => {
       const [testsRes, patientsRes, doctorsRes, labtechsRes] =
         await Promise.all([
-          axios.get("http://localhost:6969/api/tests/completed"),
-          axios.get("http://localhost:6969/api/patients"),
-          axios.get("http://localhost:6969/api/doctors"),
-          axios.get("http://localhost:6969/api/labtechs"), // optional, or load from backend
+          API.get("/tests/completed"),
+          API.get("/patients"),
+          API.get("/doctors"),
+          API.get("/labtechs"),
         ]);
 
       setTests(testsRes.data);
       setPatients(patientsRes.data);
       setDoctors(doctorsRes.data);
-      setLabtechs(labtechsRes.data || []); // fallback
+      setLabtechs(labtechsRes.data);
     };
 
     fetchData();
   }, []);
 
-  const getName = (arr, id, first = "first_name", last = "last_name") => {
+  const getName = (arr, id) => {
     const match = arr.find((x) => x.patient_id === id || x.staff_id === id);
-    return match ? `${match[first]} ${match[last]}` : "Unknown";
+    return match ? `${match.first_name} ${match.last_name}` : "Unknown";
   };
 
   return (

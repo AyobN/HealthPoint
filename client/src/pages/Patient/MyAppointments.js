@@ -1,46 +1,35 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const MyAppointments = ({ user }) => {
-  const [patient, setPatient] = useState(null);
   const [appointments, setAppointments] = useState([]);
-  const [doctors, setDoctors] = useState([]);
+  const [patients, setPatients] = useState([]);
+  const [patient, setPatient] = useState(null);
 
   useEffect(() => {
-    if (!user?.username) return;
-
-    const fetchEverything = async () => {
-      const [patientsRes, doctorsRes, appointmentsRes] = await Promise.all([
-        axios.get("http://localhost:6969/api/patients"),
-        axios.get("http://localhost:6969/api/doctors"),
-        axios.get("http://localhost:6969/api/appointments"),
+    const fetchData = async () => {
+      const [patientsRes, apptsRes] = await Promise.all([
+        API.get("/patients"),
+        API.get("/appointments"),
       ]);
 
-      const patientMatch = patientsRes.data.find(
-        (p) => p.username === user.username
-      );
-      if (!patientMatch) return;
+      const match = patientsRes.data.find((p) => p.username === user.username);
+      if (!match) return;
 
-      setPatient(patientMatch);
-      setDoctors(doctorsRes.data);
+      setPatient(match);
+      setPatients(patientsRes.data);
 
-      const futureAppointments = appointmentsRes.data.filter(
-        (a) =>
-          a.patientId === patientMatch.patient_id &&
-          a.status !== "Cancelled" &&
-          new Date(a.dateTime) >= new Date()
+      const myAppointments = apptsRes.data.filter(
+        (a) => a.patientId === match.patient_id && a.status !== "Cancelled"
       );
 
-      setAppointments(futureAppointments);
+      setAppointments(myAppointments);
     };
 
-    fetchEverything();
+    if (user?.username) fetchData();
   }, [user?.username]);
 
-  const getDoctor = (id) => doctors.find((d) => d.staff_id === id);
-
-  if (!user) return null; // logout safety
-  if (!patient) return <p>Loading patient info...</p>;
+  if (!user || !patient) return null;
 
   return (
     <div>
@@ -49,38 +38,28 @@ const MyAppointments = ({ user }) => {
         <p>You have no upcoming appointments.</p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
-          {appointments.map((a) => {
-            const doctor = getDoctor(a.doctorId);
-            return (
-              <li
-                key={a.id}
-                style={{
-                  border: "1px solid #ccc",
-                  padding: "1rem",
-                  borderRadius: "8px",
-                  marginBottom: "1rem",
-                  maxWidth: "500px",
-                }}
-              >
-                <p>
-                  <strong>Date & Time:</strong>{" "}
-                  {new Date(a.dateTime).toLocaleString()}
-                </p>
-                <p>
-                  <strong>Doctor:</strong>{" "}
-                  {doctor
-                    ? `${doctor.first_name} ${doctor.last_name}`
-                    : "Unknown"}
-                </p>
-                <p>
-                  <strong>Length:</strong> {a.length} minutes
-                </p>
-                <p>
-                  <strong>Status:</strong> {a.status}
-                </p>
-              </li>
-            );
-          })}
+          {appointments.map((a) => (
+            <li
+              key={a.id}
+              style={{
+                border: "1px solid #ccc",
+                padding: "1rem",
+                marginBottom: "1rem",
+                borderRadius: "8px",
+              }}
+            >
+              <p>
+                <strong>Date & Time:</strong>{" "}
+                {new Date(a.dateTime).toLocaleString()}
+              </p>
+              <p>
+                <strong>Length:</strong> {a.length} minutes
+              </p>
+              <p>
+                <strong>Status:</strong> {a.status}
+              </p>
+            </li>
+          ))}
         </ul>
       )}
     </div>

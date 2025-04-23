@@ -1,30 +1,41 @@
-import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import { useNavigate, useParams } from "react-router-dom";
+import API from "../../api";
 
 const DoctorForm = () => {
   const { id } = useParams();
+  const isEdit = Boolean(id);
   const navigate = useNavigate();
 
-  const isEdit = Boolean(id);
-
   const [form, setForm] = useState({
-    staff_id: "",
-    license_no: "",
+    username: "",
+    password: "",
     first_name: "",
     last_name: "",
     email: "",
-    username: "",
-    password: "",
+    license_no: "",
     specialty: "",
+    schedule: {
+      days: [],
+      startTime: "",
+      endTime: "",
+    },
   });
 
   useEffect(() => {
     if (isEdit) {
-      axios
-        .get(`http://localhost:6969/api/doctors/${id}`)
-        .then((res) => setForm(res.data))
-        .catch((err) => console.error("Doctor not found"));
+      API.get(`/doctors/${id}`).then((res) => {
+        setForm({
+          ...res.data,
+          schedule: res.data.schedule
+            ? JSON.parse(res.data.schedule)
+            : {
+                days: [],
+                startTime: "",
+                endTime: "",
+              },
+        });
+      });
     }
   }, [id, isEdit]);
 
@@ -32,124 +43,133 @@ const DoctorForm = () => {
     setForm({ ...form, [e.target.name]: e.target.value });
   };
 
+  const handleScheduleChange = (e) => {
+    setForm({
+      ...form,
+      schedule: { ...form.schedule, [e.target.name]: e.target.value },
+    });
+  };
+
+  const handleDaysChange = (day) => {
+    const updated = form.schedule.days.includes(day)
+      ? form.schedule.days.filter((d) => d !== day)
+      : [...form.schedule.days, day];
+    setForm({ ...form, schedule: { ...form.schedule, days: updated } });
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
+    const payload = { ...form, schedule: JSON.stringify(form.schedule) };
+
     if (isEdit) {
-      await axios.put(`http://localhost:6969/api/doctors/${id}`, form);
+      await API.put(`/doctors/${id}`, payload);
     } else {
-      await axios.post("http://localhost:6969/api/doctors", form);
+      await API.post("/doctors", payload);
     }
+
     navigate("/receptionist/doctors");
   };
 
-  const handleCancel = () => {
-    navigate("/receptionist/doctors");
-  };
-
-  const handleDelete = async () => {
-    const confirmed = window.confirm(
-      "Are you sure you want to delete this doctor?"
-    );
-    if (!confirmed) return;
-
-    await axios.delete(`http://localhost:6969/api/doctors/${id}`);
-    navigate("/receptionist/doctors");
-  };
+  const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
 
   return (
-    <div style={{ padding: "1rem", maxWidth: "500px" }}>
+    <div style={{ padding: "1rem", maxWidth: "600px" }}>
       <h2>{isEdit ? "Edit Doctor" : "Add Doctor"}</h2>
       <form
         onSubmit={handleSubmit}
-        style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+        style={{ display: "flex", flexDirection: "column", gap: "1rem" }}
       >
-        {isEdit && (
-          <div>
-            <label>Staff ID:</label>
-            <input name="staff_id" value={form.staff_id} disabled />
-          </div>
-        )}
-        <div>
-          <label>License No:</label>
-          <input
-            name="license_no"
-            value={form.license_no}
-            onChange={handleChange}
-            required
-          />
+        <input
+          name="username"
+          placeholder="Username"
+          value={form.username}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="password"
+          type="password"
+          placeholder="Password"
+          value={form.password}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="first_name"
+          placeholder="First Name"
+          value={form.first_name}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="last_name"
+          placeholder="Last Name"
+          value={form.last_name}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="email"
+          placeholder="Email"
+          value={form.email}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="license_no"
+          placeholder="License Number"
+          value={form.license_no}
+          onChange={handleChange}
+          required
+        />
+        <input
+          name="specialty"
+          placeholder="Specialty"
+          value={form.specialty}
+          onChange={handleChange}
+          required
+        />
+
+        <label>
+          <strong>Schedule</strong>
+        </label>
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "1rem" }}>
+          {daysOfWeek.map((day) => (
+            <label key={day}>
+              <input
+                type="checkbox"
+                checked={form.schedule.days.includes(day)}
+                onChange={() => handleDaysChange(day)}
+              />
+              {day}
+            </label>
+          ))}
         </div>
-        <div>
-          <label>First Name:</label>
-          <input
-            name="first_name"
-            value={form.first_name}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div>
-          <label>Last Name:</label>
-          <input
-            name="last_name"
-            value={form.last_name}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div>
-          <label>Email:</label>
-          <input
-            name="email"
-            type="email"
-            value={form.email}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div>
-          <label>Username:</label>
-          <input
-            name="username"
-            value={form.username}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div>
-          <label>Password:</label>
-          <input
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div>
-          <label>Specialty:</label>
-          <input
-            name="specialty"
-            value={form.specialty}
-            onChange={handleChange}
-            required
-          />
-        </div>
-        <div style={{ display: "flex", gap: "1rem", flexWrap: "wrap" }}>
+        <input
+          name="startTime"
+          type="time"
+          value={form.schedule.startTime}
+          onChange={handleScheduleChange}
+          required
+        />
+        <input
+          name="endTime"
+          type="time"
+          value={form.schedule.endTime}
+          onChange={handleScheduleChange}
+          required
+        />
+
+        <div style={{ display: "flex", gap: "1rem" }}>
           <button type="submit">
             {isEdit ? "Save Changes" : "Add Doctor"}
           </button>
-          <button type="button" onClick={handleCancel}>
+          <button
+            type="button"
+            onClick={() => navigate("/receptionist/doctors")}
+          >
             Cancel
           </button>
-          {isEdit && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              style={{ backgroundColor: "#cc3333", color: "white" }}
-            >
-              Delete Doctor
-            </button>
-          )}
         </div>
       </form>
     </div>

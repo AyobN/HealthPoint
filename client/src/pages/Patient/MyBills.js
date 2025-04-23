@@ -1,27 +1,23 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const MyBills = ({ user }) => {
   const [patient, setPatient] = useState(null);
   const [bills, setBills] = useState([]);
 
   useEffect(() => {
-    if (!user?.username) return;
-
     const fetchBills = async () => {
-      const patientsRes = await axios.get("http://localhost:6969/api/patients");
+      const patientsRes = await API.get("/patients");
       const match = patientsRes.data.find((p) => p.username === user.username);
       if (!match) return;
 
       setPatient(match);
 
-      const billsRes = await axios.get(
-        `http://localhost:6969/api/bills/patient/${match.patient_id}`
-      );
+      const billsRes = await API.get(`/bills/patient/${match.patient_id}`);
       setBills(billsRes.data);
     };
 
-    fetchBills();
+    if (user?.username) fetchBills();
   }, [user?.username]);
 
   if (!user || !patient) return null;
@@ -41,7 +37,6 @@ const MyBills = ({ user }) => {
                 padding: "1rem",
                 borderRadius: "8px",
                 marginBottom: "1rem",
-                maxWidth: "500px",
               }}
             >
               <p>

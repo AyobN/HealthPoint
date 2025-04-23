@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const MyPatients = ({ user }) => {
   const [patients, setPatients] = useState([]);
@@ -8,32 +8,32 @@ const MyPatients = ({ user }) => {
 
   useEffect(() => {
     const fetchData = async () => {
-      const [patientsRes, triageRes, roomsRes] = await Promise.all([
-        axios.get("http://localhost:6969/api/patients"),
-        axios.get("http://localhost:6969/api/triage"),
-        axios.get("http://localhost:6969/api/roomassignments"), // see note below
+      const [patientsRes, triageRes, roomRes] = await Promise.all([
+        API.get("/patients"),
+        API.get("/triage"),
+        API.get("/roomassignments"),
       ]);
 
-      const doctorPatients = patientsRes.data.filter(
+      const assigned = patientsRes.data.filter(
         (p) => p.doctor_id === user.userId
       );
 
-      setPatients(doctorPatients);
+      setPatients(assigned);
       setTriageData(triageRes.data);
-      setRoomAssignments(roomsRes.data); // e.g. [{ room_no: 101, patient_id: 2 }]
+      setRoomAssignments(roomRes.data);
     };
 
-    if (user?.userId) fetchData();
+    fetchData();
   }, [user?.userId]);
 
-  const getTriageForPatient = (patient_id) => {
+  const getTriage = (patient_id) => {
     const entries = triageData.filter((t) => t.patient_id === patient_id);
     return entries.length > 0 ? entries[entries.length - 1] : null;
   };
 
-  const getRoomForPatient = (patient_id) => {
-    const match = roomAssignments.find((r) => r.patient_id === patient_id);
-    return match?.room_no || null;
+  const getRoom = (patient_id) => {
+    const r = roomAssignments.find((r) => r.patient_id === patient_id);
+    return r ? `Room ${r.room_no}` : "Unassigned";
   };
 
   return (
@@ -44,8 +44,8 @@ const MyPatients = ({ user }) => {
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {patients.map((p) => {
-            const triage = getTriageForPatient(p.patient_id);
-            const room = getRoomForPatient(p.patient_id);
+            const triage = getTriage(p.patient_id);
+            const room = getRoom(p.patient_id);
 
             return (
               <li
@@ -65,7 +65,7 @@ const MyPatients = ({ user }) => {
                   (ID: {p.patient_id})
                 </p>
                 <p>Status: {p.status}</p>
-                <p>Room: {room ? `Room ${room}` : "Not assigned"}</p>
+                <p>Room: {room}</p>
 
                 {triage ? (
                   <>

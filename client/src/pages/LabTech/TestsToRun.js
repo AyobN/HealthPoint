@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 import TestResultForm from "./TestResultForm";
 
 const TestsToRun = ({ user }) => {
@@ -11,11 +11,10 @@ const TestsToRun = ({ user }) => {
   useEffect(() => {
     const fetchData = async () => {
       const [testsRes, patientsRes, doctorsRes] = await Promise.all([
-        axios.get("http://localhost:6969/api/tests/pending"),
-        axios.get("http://localhost:6969/api/patients"),
-        axios.get("http://localhost:6969/api/doctors"),
+        API.get("/tests/pending"),
+        API.get("/patients"),
+        API.get("/doctors"),
       ]);
-
       setTests(testsRes.data);
       setPatients(patientsRes.data);
       setDoctors(doctorsRes.data);
@@ -24,14 +23,14 @@ const TestsToRun = ({ user }) => {
     fetchData();
   }, []);
 
-  const getName = (arr, id, first = "first_name", last = "last_name") => {
+  const getName = (arr, id) => {
     const match = arr.find((x) => x.patient_id === id || x.staff_id === id);
-    return match ? `${match[first]} ${match[last]}` : "Unknown";
+    return match ? `${match.first_name} ${match.last_name}` : "Unknown";
   };
 
   const handleSubmit = async () => {
     setActiveTestId(null);
-    const res = await axios.get("http://localhost:6969/api/tests/pending");
+    const res = await API.get("/tests/pending");
     setTests(res.data);
   };
 

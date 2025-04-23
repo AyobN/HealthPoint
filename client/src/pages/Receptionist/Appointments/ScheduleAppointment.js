@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../../api";
 
 const ScheduleAppointment = () => {
   const [doctors, setDoctors] = useState([]);
@@ -20,24 +20,15 @@ const ScheduleAppointment = () => {
   const [message, setMessage] = useState("");
 
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/doctors")
-      .then((res) => setDoctors(res.data));
-    axios
-      .get("http://localhost:6969/api/patients")
-      .then((res) => setPatients(res.data));
+    API.get("/doctors").then((res) => setDoctors(res.data));
+    API.get("/patients").then((res) => setPatients(res.data));
   }, []);
 
   useEffect(() => {
     if (selectedDoctor && date && length) {
-      axios
-        .get(
-          `http://localhost:6969/api/doctors/${selectedDoctor.staff_id}/availability`,
-          {
-            params: { date, length },
-          }
-        )
-        .then((res) => setAvailableSlots(res.data));
+      API.get(`/doctors/${selectedDoctor.staff_id}/availability`, {
+        params: { date, length },
+      }).then((res) => setAvailableSlots(res.data));
     } else {
       setAvailableSlots([]);
     }
@@ -56,7 +47,7 @@ const ScheduleAppointment = () => {
 
     const fullDateTime = `${date}T${selectedTime}`;
     try {
-      await axios.post("http://localhost:6969/api/appointments", {
+      await API.post("/appointments", {
         doctorId: selectedDoctor.staff_id,
         patientId: selectedPatient.patient_id,
         dateTime: fullDateTime,
@@ -160,7 +151,6 @@ const ScheduleAppointment = () => {
           </ul>
         </div>
 
-        {/* Date and Length */}
         <label>Date:</label>
         <input
           type="date"

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const TriageForm = ({ patient_id, onSuccess }) => {
   const [form, setForm] = useState({
@@ -14,7 +14,7 @@ const TriageForm = ({ patient_id, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post("http://localhost:6969/api/triage", {
+    await API.post("/triage", {
       ...form,
       patient_id,
     });

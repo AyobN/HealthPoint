@@ -1,11 +1,10 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../../api";
 
 const AppointmentListByDoctor = () => {
   const [appointments, setAppointments] = useState([]);
   const [doctors, setDoctors] = useState([]);
   const [patients, setPatients] = useState([]);
-
   const [search, setSearch] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState(null);
 
@@ -15,9 +14,9 @@ const AppointmentListByDoctor = () => {
 
   const fetchData = async () => {
     const [aRes, dRes, pRes] = await Promise.all([
-      axios.get("http://localhost:6969/api/appointments"),
-      axios.get("http://localhost:6969/api/doctors"),
-      axios.get("http://localhost:6969/api/patients"),
+      API.get("/appointments"),
+      API.get("/doctors"),
+      API.get("/patients"),
     ]);
     setAppointments(aRes.data);
     setDoctors(dRes.data);
@@ -40,18 +39,22 @@ const AppointmentListByDoctor = () => {
     const newDateTime = prompt("Enter new date/time (yyyy-mm-ddThh:mm):");
     const newLength = prompt("Enter new length in minutes:");
     if (!newDateTime || !newLength) return;
-    await axios.put(`http://localhost:6969/api/appointments/${id}`, {
+
+    await API.put(`/appointments/${id}`, {
       dateTime: newDateTime,
       length: parseInt(newLength),
     });
+
     fetchData();
   };
 
   const handleCancel = async (id) => {
     if (!window.confirm("Cancel this appointment?")) return;
-    await axios.put(`http://localhost:6969/api/appointments/${id}`, {
+
+    await API.put(`/appointments/${id}`, {
       status: "Cancelled",
     });
+
     fetchData();
   };
 
@@ -66,6 +69,7 @@ const AppointmentListByDoctor = () => {
         onChange={(e) => setSearch(e.target.value)}
         placeholder="Search by name..."
       />
+
       <ul
         style={{
           border: "1px solid #ccc",

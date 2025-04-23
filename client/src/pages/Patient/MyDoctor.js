@@ -1,25 +1,24 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const MyDoctor = ({ user }) => {
   const [patient, setPatient] = useState(null);
   const [doctor, setDoctor] = useState(null);
 
   useEffect(() => {
-    // Get patient info (including doctor_id)
-    axios.get("http://localhost:6969/api/patients").then((res) => {
-      const match = res.data.find((p) => p.username === user.username);
-      if (match) {
-        setPatient(match);
+    const fetchData = async () => {
+      const patientRes = await API.get("/patients");
+      const match = patientRes.data.find((p) => p.username === user.username);
+      if (!match) return;
 
-        // Now get doctor info
-        axios.get("http://localhost:6969/api/doctors").then((res2) => {
-          const doc = res2.data.find((d) => d.staff_id === match.doctor_id);
-          setDoctor(doc);
-        });
-      }
-    });
-  }, [user.username]);
+      setPatient(match);
+
+      const doctorRes = await API.get(`/doctors/${match.doctor_id}`);
+      setDoctor(doctorRes.data);
+    };
+
+    if (user?.username) fetchData();
+  }, [user?.username]);
 
   if (!patient || !doctor) return <p>Loading doctor info...</p>;
 
@@ -42,9 +41,6 @@ const MyDoctor = ({ user }) => {
         </p>
         <p>
           <strong>Email:</strong> {doctor.email}
-        </p>
-        <p>
-          <strong>Staff ID:</strong> {doctor.staff_id}
         </p>
       </div>
     </div>

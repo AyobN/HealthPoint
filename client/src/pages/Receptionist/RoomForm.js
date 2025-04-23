@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const RoomForm = () => {
   const { room_no } = useParams();
@@ -14,16 +14,12 @@ const RoomForm = () => {
 
   useEffect(() => {
     if (isEdit) {
-      axios
-        .get(`http://localhost:6969/api/rooms/${room_no}`)
-        .then((res) => setForm(res.data));
-      axios
-        .get(`http://localhost:6969/api/rooms/${room_no}/patients`)
-        .then((res) => setAssignedPatients(res.data));
+      API.get(`/rooms/${room_no}`).then((res) => setForm(res.data));
+      API.get(`/rooms/${room_no}/patients`).then((res) =>
+        setAssignedPatients(res.data)
+      );
     }
-    axios
-      .get("http://localhost:6969/api/patients")
-      .then((res) => setAllPatients(res.data));
+    API.get("/patients").then((res) => setAllPatients(res.data));
   }, [room_no, isEdit]);
 
   const handleChange = (e) =>
@@ -32,9 +28,9 @@ const RoomForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (isEdit) {
-      await axios.put(`http://localhost:6969/api/rooms/${room_no}`, form);
+      await API.put(`/rooms/${room_no}`, form);
     } else {
-      await axios.post("http://localhost:6969/api/rooms", form);
+      await API.post("/rooms", form);
     }
     navigate("/receptionist/rooms");
   };
@@ -43,28 +39,20 @@ const RoomForm = () => {
 
   const handleDelete = async () => {
     if (window.confirm("Are you sure you want to delete this room?")) {
-      await axios.delete(`http://localhost:6969/api/rooms/${room_no}`);
+      await API.delete(`/rooms/${room_no}`);
       navigate("/receptionist/rooms");
     }
   };
 
   const handleAssignPatient = async (patient_id) => {
-    await axios.post(`http://localhost:6969/api/rooms/${room_no}/patients`, {
-      patient_id,
-    });
-    const res = await axios.get(
-      `http://localhost:6969/api/rooms/${room_no}/patients`
-    );
+    await API.post(`/rooms/${room_no}/patients`, { patient_id });
+    const res = await API.get(`/rooms/${room_no}/patients`);
     setAssignedPatients(res.data);
   };
 
   const handleUnassignPatient = async (patient_id) => {
-    await axios.delete(
-      `http://localhost:6969/api/rooms/${room_no}/patients/${patient_id}`
-    );
-    const res = await axios.get(
-      `http://localhost:6969/api/rooms/${room_no}/patients`
-    );
+    await API.delete(`/rooms/${room_no}/patients/${patient_id}`);
+    const res = await API.get(`/rooms/${room_no}/patients`);
     setAssignedPatients(res.data);
   };
 

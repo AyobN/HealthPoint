@@ -1,20 +1,21 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 import TriageForm from "./TriageForm";
 
 const MyPatients = () => {
   const [patients, setPatients] = useState([]);
   const [triageData, setTriageData] = useState([]);
   const [roomAssignments, setRoomAssignments] = useState([]);
-  const [activeTriage, setActiveTriage] = useState(null); // patient_id of open form
+  const [activeTriage, setActiveTriage] = useState(null);
 
   useEffect(() => {
     const fetchData = async () => {
       const [patientsRes, triageRes, roomsRes] = await Promise.all([
-        axios.get("http://localhost:6969/api/patients"),
-        axios.get("http://localhost:6969/api/triage"),
-        axios.get("http://localhost:6969/api/roomassignments"),
+        API.get("/patients"),
+        API.get("/triage"),
+        API.get("/roomassignments"),
       ]);
+
       setPatients(patientsRes.data);
       setTriageData(triageRes.data);
       setRoomAssignments(roomsRes.data);
@@ -33,12 +34,10 @@ const MyPatients = () => {
     return r ? `Room ${r.room_no}` : "Unassigned";
   };
 
-  const handleTriageSubmit = () => {
+  const handleTriageSubmit = async () => {
     setActiveTriage(null);
-    // re-fetch to reflect new triage
-    axios.get("http://localhost:6969/api/triage").then((res) => {
-      setTriageData(res.data);
-    });
+    const res = await API.get("/triage");
+    setTriageData(res.data);
   };
 
   return (

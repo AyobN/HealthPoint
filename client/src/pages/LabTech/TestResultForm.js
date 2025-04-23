@@ -1,12 +1,12 @@
 import { useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const TestResultForm = ({ test_id, labtech_id, onSuccess }) => {
   const [result, setResult] = useState("");
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.put(`http://localhost:6969/api/tests/${test_id}`, {
+    await API.put(`/tests/${test_id}`, {
       result,
       labtech_id,
     });

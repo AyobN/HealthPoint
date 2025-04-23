@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 import RecordForm from "./RecordForm";
 
 const PatientRecords = ({ user }) => {
@@ -10,25 +10,19 @@ const PatientRecords = ({ user }) => {
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/patients")
-      .then((res) => setPatients(res.data));
+    API.get("/patients").then((res) => setPatients(res.data));
   }, []);
 
   const handleSelect = async (p) => {
     setSelectedPatient(p);
     setSearch(`${p.first_name} ${p.last_name}`);
-    const res = await axios.get(
-      `http://localhost:6969/api/records/patient/${p.patient_id}`
-    );
+    const res = await API.get(`/records/patient/${p.patient_id}`);
     setRecords(res.data);
     setShowForm(false);
   };
 
   const handleRecordAdded = async () => {
-    const res = await axios.get(
-      `http://localhost:6969/api/records/patient/${selectedPatient.patient_id}`
-    );
+    const res = await API.get(`/records/patient/${selectedPatient.patient_id}`);
     setRecords(res.data);
     setShowForm(false);
   };

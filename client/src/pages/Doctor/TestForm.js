@@ -1,5 +1,5 @@
 import { useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const TestForm = ({ patient_id, doctor_id, onSuccess }) => {
   const [form, setForm] = useState({
@@ -14,7 +14,7 @@ const TestForm = ({ patient_id, doctor_id, onSuccess }) => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await axios.post("http://localhost:6969/api/tests", {
+    await API.post("/tests", {
       ...form,
       patient_id,
       doctor_id,

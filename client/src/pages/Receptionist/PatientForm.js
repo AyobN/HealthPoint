@@ -1,6 +1,6 @@
 import { useParams, useNavigate } from "react-router-dom";
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 
 const PatientForm = () => {
   const { id } = useParams();
@@ -8,6 +8,8 @@ const PatientForm = () => {
   const isEdit = Boolean(id);
 
   const [form, setForm] = useState({
+    username: "",
+    password: "",
     patient_id: "",
     first_name: "",
     last_name: "",
@@ -23,15 +25,10 @@ const PatientForm = () => {
   const [doctors, setDoctors] = useState([]);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/doctors")
-      .then((res) => setDoctors(res.data));
+    API.get("/doctors").then((res) => setDoctors(res.data));
 
     if (isEdit) {
-      axios.get(`http://localhost:6969/api/patients`).then((res) => {
-        const match = res.data.find((p) => p.patient_id === parseInt(id));
-        if (match) setForm(match);
-      });
+      API.get(`/patients/${id}`).then((res) => setForm(res.data));
     }
   }, [id, isEdit]);
 
@@ -43,9 +40,9 @@ const PatientForm = () => {
     e.preventDefault();
 
     if (isEdit) {
-      await axios.put(`http://localhost:6969/api/patients/${id}`, form);
+      await API.put(`/patients/${id}`, form);
     } else {
-      await axios.post("http://localhost:6969/api/patients", form);
+      await API.post("/patients", form);
     }
 
     navigate("/receptionist/patients");
@@ -58,7 +55,7 @@ const PatientForm = () => {
   const handleDelete = async () => {
     if (!window.confirm("Are you sure you want to delete this patient?"))
       return;
-    await axios.delete(`http://localhost:6969/api/patients/${id}`);
+    await API.delete(`/patients/${id}`);
     navigate("/receptionist/patients");
   };
 
@@ -69,11 +66,24 @@ const PatientForm = () => {
         onSubmit={handleSubmit}
         style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
       >
-        {isEdit && (
-          <div>
-            <label>Patient ID:</label>
-            <input name="patient_id" value={form.patient_id} disabled />
-          </div>
+        {!isEdit && (
+          <>
+            <input
+              name="username"
+              placeholder="Username"
+              value={form.username}
+              onChange={handleChange}
+              required
+            />
+            <input
+              name="password"
+              type="password"
+              placeholder="Password"
+              value={form.password}
+              onChange={handleChange}
+              required
+            />
+          </>
         )}
         <div>
           <label>First Name:</label>

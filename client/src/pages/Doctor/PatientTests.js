@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import API from "../../api";
 import TestForm from "./TestForm";
 
 const PatientTests = ({ user }) => {
@@ -10,25 +10,19 @@ const PatientTests = ({ user }) => {
   const [showForm, setShowForm] = useState(false);
 
   useEffect(() => {
-    axios
-      .get("http://localhost:6969/api/patients")
-      .then((res) => setPatients(res.data));
+    API.get("/patients").then((res) => setPatients(res.data));
   }, []);
 
   const handleSelect = async (p) => {
     setSelectedPatient(p);
     setSearch(`${p.first_name} ${p.last_name}`);
-    const res = await axios.get(
-      `http://localhost:6969/api/tests/patient/${p.patient_id}`
-    );
+    const res = await API.get(`/tests/patient/${p.patient_id}`);
     setTests(res.data);
     setShowForm(false);
   };
 
   const handleTestAdded = async () => {
-    const res = await axios.get(
-      `http://localhost:6969/api/tests/patient/${selectedPatient.patient_id}`
-    );
+    const res = await API.get(`/tests/patient/${selectedPatient.patient_id}`);
     setTests(res.data);
     setShowForm(false);
   };
@@ -96,7 +90,7 @@ const PatientTests = ({ user }) => {
               ))}
             </ul>
           )}
-          <button onClick={() => setShowForm(true)}>Add Test</button>
+          <button onClick={() => setShowForm(true)}>Order New Test</button>
 
           {showForm && (
             <TestForm
