@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import axios from "axios";
 
 const AppointmentListByDoctor = () => {
@@ -8,6 +9,8 @@ const AppointmentListByDoctor = () => {
 
   const [search, setSearch] = useState("");
   const [selectedDoctor, setSelectedDoctor] = useState(null);
+
+  const navigate = useNavigate();
 
   useEffect(() => {
     fetchData();
@@ -33,19 +36,8 @@ const AppointmentListByDoctor = () => {
   );
 
   const doctorAppointments = selectedDoctor
-    ? appointments.filter((a) => a.doctorId === selectedDoctor.staff_id)
+    ? appointments.filter((a) => a.doctor_id === selectedDoctor.staff_id)
     : [];
-
-  const handleReschedule = async (id) => {
-    const newDateTime = prompt("Enter new date/time (yyyy-mm-ddThh:mm):");
-    const newLength = prompt("Enter new length in minutes:");
-    if (!newDateTime || !newLength) return;
-    await axios.put(`http://localhost:6969/api/appointments/${id}`, {
-      dateTime: newDateTime,
-      length: parseInt(newLength),
-    });
-    fetchData();
-  };
 
   const handleCancel = async (id) => {
     if (!window.confirm("Cancel this appointment?")) return;
@@ -93,23 +85,30 @@ const AppointmentListByDoctor = () => {
           <h3>Appointments for Dr. {selectedDoctor.last_name}</h3>
           <ul>
             {doctorAppointments.map((a) => {
-              const patient = getPatient(a.patientId);
+              const patient = getPatient(a.patient_id);
               return (
-                <li key={a.id} style={{ marginBottom: "1rem" }}>
-                  <strong>{new Date(a.dateTime).toLocaleString()}</strong> (
+                <li key={a.appointment_id} style={{ marginBottom: "1rem" }}>
+                  <strong>{new Date(a.date_time).toLocaleString()}</strong> (
                   {a.length} min)
                   <br />
                   Patient: {patient?.first_name} {patient?.last_name} (ID:{" "}
-                  {a.patientId})
+                  {a.patient_id})
                   <br />
                   Status: {a.status}
                   <br />
-                  <button onClick={() => handleReschedule(a.id)}>
+                  <button
+                    onClick={() =>
+                      navigate(
+                        `/receptionist/appointments/reschedule/${a.appointment_id}`,
+                        { state: { appointment: a } }
+                      )
+                    }
+                  >
                     Reschedule
                   </button>
                   {a.status !== "Cancelled" && (
                     <button
-                      onClick={() => handleCancel(a.id)}
+                      onClick={() => handleCancel(a.appointment_id)}
                       style={{ marginLeft: "0.5rem" }}
                     >
                       Cancel

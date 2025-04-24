@@ -13,6 +13,7 @@ import ScheduleAppointment from "./Receptionist/Appointments/ScheduleAppointment
 import BillingListByPatient from "./Receptionist/Billing/BillingListByPatient";
 import BillingById from "./Receptionist/Billing/BillingById";
 import BillingForm from "./Receptionist/Billing/BillingForm";
+import RescheduleAppointment from "./Receptionist/Appointments/RescheduleAppointment";
 
 const ReceptionistView = ({ user, setUser }) => {
   const navigate = useNavigate();
@@ -87,6 +88,10 @@ const ReceptionistView = ({ user, setUser }) => {
           <Route
             path="appointments/view/doctor"
             element={<AppointmentListByDoctor />}
+          />
+          <Route
+            path="appointments/reschedule/:id"
+            element={<RescheduleAppointment />}
           />
 
           {/* Billing */}

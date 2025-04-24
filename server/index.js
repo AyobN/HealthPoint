@@ -1,6 +1,7 @@
-const express = require("express");
-const cors = require("cors");
-const dotenv = require("dotenv");
+import express from "express";
+import cors from "cors";
+import dotenv from "dotenv";
+import mysql from "mysql2";
 
 dotenv.config();
 const app = express();
@@ -9,813 +10,11 @@ const PORT = process.env.PORT || 6969;
 app.use(cors());
 app.use(express.json());
 
-// Dummy tests
-let nextTestId = 3;
-
-let tests = [
-  {
-    test_id: 1,
-    patient_id: 1,
-    doctor_id: 1,
-    labtech_id: null,
-    date: "2024-06-05",
-    test_name: "Blood Panel",
-    result: "",
-  },
-  {
-    test_id: 2,
-    patient_id: 2,
-    doctor_id: 2,
-    labtech_id: 5,
-    date: "2024-06-10",
-    test_name: "X-ray",
-    result: "Fracture detected",
-  },
-];
-
-// Dummy records
-
-let nextRecordId = 3;
-
-let records = [
-  {
-    record_id: 1,
-    patient_id: 1,
-    doctor_id: 1,
-    date: "2024-06-01",
-    symptoms: "Cough, Fever",
-    diagnosis: "Bronchitis",
-    notes: "Prescribed antibiotics. Follow up in 2 weeks.",
-  },
-  {
-    record_id: 2,
-    patient_id: 2,
-    doctor_id: 2,
-    date: "2024-06-02",
-    symptoms: "Headache, Nausea",
-    diagnosis: "Migraine",
-    notes: "Recommended hydration and rest.",
-  },
-];
-
-// Dummy triage
-let triageData = [
-  { patient_id: 1, bp: "120/80", heart_rate: 72, rating: "Stable" },
-  { patient_id: 2, bp: "140/90", heart_rate: 88, rating: "Elevated" },
-  { patient_id: 1, bp: "115/75", heart_rate: 70, rating: "Stable" }, // multiple entries okay
-];
-
-// Dummy bills
-let nextBillId = 3;
-
-let bills = [
-  {
-    bill_id: 1,
-    patient_id: 1,
-    appointment_id: 1,
-    amount: 150.0,
-    status: "Unpaid",
-    description: "Initial consultation",
-    issued_date: "2024-05-01T10:00",
-  },
-  {
-    bill_id: 2,
-    patient_id: 2,
-    appointment_id: 2,
-    amount: 200.0,
-    status: "Paid",
-    description: "Follow-up exam",
-    issued_date: "2024-05-03T11:00",
-  },
-];
-
-// ========== Billing Routes ==========
-
-// Get all bills
-app.get("/api/bills", (req, res) => {
-  res.json(bills);
-});
-
-// Get bills by patient ID
-app.get("/api/bills/patient/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const patientBills = bills.filter((b) => b.patient_id === id);
-  res.json(patientBills);
-});
-
-// Get single bill by bill ID
-app.get("/api/bills/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const bill = bills.find((b) => b.bill_id === id);
-  if (!bill) return res.status(404).json({ message: "Bill not found" });
-  res.json(bill);
-});
-
-// Create a new bill
-app.post("/api/bills", (req, res) => {
-  const {
-    patient_id,
-    appointment_id,
-    amount,
-    description,
-    status = "Unpaid",
-  } = req.body;
-
-  if (!patient_id || !amount || !description) {
-    return res.status(400).json({ message: "Missing required fields." });
-  }
-
-  const newBill = {
-    bill_id: nextBillId++,
-    patient_id,
-    appointment_id: appointment_id || null,
-    amount: parseFloat(amount),
-    status,
-    description,
-    issued_date: new Date().toISOString(),
-  };
-
-  bills.push(newBill);
-  res.json({ success: true, bill: newBill });
-});
-
-// Update a bill (e.g., mark as paid)
-app.put("/api/bills/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = bills.findIndex((b) => b.bill_id === id);
-  if (index === -1) return res.status(404).json({ message: "Bill not found" });
-
-  bills[index] = { ...bills[index], ...req.body };
-  res.json({ success: true, bill: bills[index] });
-});
-
-// Delete a bill (optional)
-app.delete("/api/bills/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  bills = bills.filter((b) => b.bill_id !== id);
-  res.json({ success: true });
-});
-
-// Dummy user login accounts
-const users = [
-  { id: 1, username: "patient1", password: "pass123", role: "patient" },
-  { id: 2, username: "nurse1", password: "nurse123", role: "nurse" },
-  { id: 3, username: "doctor1", password: "doc123", role: "doctor" },
-  { id: 4, username: "reception1", password: "rec123", role: "receptionist" },
-  { id: 5, username: "labtech1", password: "lab123", role: "labtechnician" },
-];
-
-let nextPatientId = 3;
-
-let patients = [
-  {
-    patient_id: 1,
-    username: "patient1",
-    password: "pass123",
-    first_name: "John",
-    last_name: "Doe",
-    email: "john@example.com",
-    phone: "555-1234",
-    dob: "1990-01-01",
-    gender: "Male",
-    insurance: "Blue Cross",
-    status: "outpatient",
-    doctor_id: 1,
-  },
-  {
-    patient_id: 2,
-    username: "patient2",
-    password: "pass456",
-    first_name: "Alice",
-    last_name: "Smith",
-    email: "alice@example.com",
-    phone: "555-5678",
-    dob: "1985-07-15",
-    gender: "Female",
-    insurance: "Sun Life",
-    status: "inpatient",
-    doctor_id: 2,
-  },
-];
-
-let nextStaffId = 3;
-
-let doctors = [
-  {
-    staff_id: 1,
-    username: "house",
-    password: "doc123",
-    license_no: "D12345",
-    first_name: "Gregory",
-    last_name: "House",
-    email: "house@example.com",
-    specialty: "Diagnostics",
-    schedule: {
-      days: ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"],
-      startTime: "09:00",
-      endTime: "17:00",
-    },
-    patients: [1],
-  },
-  {
-    staff_id: 2,
-    username: "wilson",
-    password: "doc456",
-    license_no: "D67890",
-    first_name: "James",
-    last_name: "Wilson",
-    email: "wilson@example.com",
-    specialty: "Oncology",
-    schedule: {
-      days: ["Monday", "Wednesday", "Friday"],
-      startTime: "10:00",
-      endTime: "16:00",
-    },
-    patients: [2],
-  },
-];
-
-let nurses = [
-  {
-    staff_id: 3,
-    username: "nursejoy",
-    password: "nurse123",
-    first_name: "Joy",
-    last_name: "Smith",
-    email: "nurse.joy@example.com",
-  },
-];
-
-// Dummy lab techs
-let labtechs = [
-  {
-    staff_id: 5,
-    username: "labtech1",
-    password: "lab123",
-    first_name: "Leo",
-    last_name: "Green",
-    email: "leo.green@hospital.com",
-  },
-  {
-    staff_id: 6,
-    username: "labtech2",
-    password: "lab456",
-    first_name: "Sara",
-    last_name: "Stone",
-    email: "sara.stone@hospital.com",
-  },
-];
-
-let receptionists = [
-  {
-    staff_id: 4,
-    username: "reception1",
-    password: "rec123",
-    first_name: "Emma",
-    last_name: "Brown",
-    email: "emma.brown@hospital.com",
-  },
-];
-
-// Dummy appointments
-let appointments = [];
-
-// Dummy rooms
-let rooms = [
-  { room_no: 101, type: "ICU", capacity: 1 },
-  { room_no: 202, type: "Ward", capacity: 2 },
-];
-
-// Dummy room assignment
-let roomAssignments = [
-  { room_no: 101, patient_id: 2 }, // Alice is in Room 101
-];
-
-app.get("/api/roomassignments", (req, res) => {
-  res.json(roomAssignments);
-});
-
-app.post("/api/patients/:id/admit", (req, res) => {
-  const id = parseInt(req.params.id);
-  const patient = patients.find((p) => p.patient_id === id);
-  if (!patient) return res.status(404).json({ message: "Patient not found" });
-
-  if (patient.status === "inpatient") {
-    return res.status(400).json({ message: "Patient is already admitted." });
-  }
-
-  // Find available room
-  const getOccupancy = (room_no) =>
-    roomAssignments.filter((r) => r.room_no === room_no).length;
-
-  let availableRoom = rooms.find(
-    (r) => r.type === "Waiting Room" && getOccupancy(r.room_no) < r.capacity
-  );
-
-  if (!availableRoom) {
-    availableRoom = rooms.find((r) => getOccupancy(r.room_no) < r.capacity);
-  }
-
-  if (!availableRoom) {
-    return res.status(400).json({ message: "No rooms available." });
-  }
-
-  roomAssignments.push({ room_no: availableRoom.room_no, patient_id: id });
-  patient.status = "inpatient";
-
-  if (!patient.doctor_id) {
-    const availableDoctors = doctors.filter(
-      (d) => !d.patients.includes(patient.patient_id)
-    );
-    if (availableDoctors.length === 0) {
-      return res
-        .status(400)
-        .json({ message: "No doctors available to assign." });
-    }
-
-    const randomDoctor =
-      availableDoctors[Math.floor(Math.random() * availableDoctors.length)];
-    patient.doctor_id = randomDoctor.staff_id;
-
-    if (!randomDoctor.patients.includes(patient.patient_id)) {
-      randomDoctor.patients.push(patient.patient_id);
-    }
-  }
-
-  res.json({ success: true, room_no: availableRoom.room_no });
-});
-
-app.get("/api/rooms/assignments", (req, res) => {
-  const counts = {};
-
-  roomAssignments.forEach(({ room_no }) => {
-    counts[room_no] = (counts[room_no] || 0) + 1;
-  });
-
-  res.json(counts);
-});
-
-app.post("/api/patients/:id/discharge", (req, res) => {
-  const id = parseInt(req.params.id);
-  const patient = patients.find((p) => p.patient_id === id);
-  if (!patient) return res.status(404).json({ message: "Patient not found" });
-
-  if (patient.status !== "inpatient") {
-    return res
-      .status(400)
-      .json({ message: "Patient is not currently admitted." });
-  }
-
-  roomAssignments = roomAssignments.filter((r) => r.patient_id !== id);
-  patient.status = "outpatient";
-
-  res.json({ success: true });
-});
-
-// ===================
-// LOGIN ROUTE
-// ===================
-app.post("/api/login", (req, res) => {
-  const { username, password, loginType } = req.body;
-
-  if (loginType === "patient") {
-    const patient = patients.find(
-      (p) => p.username === username && p.password === password
-    );
-    if (!patient)
-      return res.status(401).json({ message: "Invalid credentials" });
-
-    return res.json({
-      success: true,
-      userId: patient.patient_id,
-      role: "patient",
-      username: patient.username,
-    });
-  }
-
-  if (loginType === "staff") {
-    const check = (arr, role) => {
-      const match = arr.find(
-        (u) => u.username === username && u.password === password
-      );
-      return match ? { match, role } : null;
-    };
-
-    const results = [
-      check(doctors, "doctor"),
-      check(nurses, "nurse"),
-      check(receptionists, "receptionist"),
-      check(labtechs, "labtechnician"),
-    ];
-
-    const found = results.find((r) => r !== null);
-
-    if (!found) return res.status(401).json({ message: "Invalid credentials" });
-
-    return res.json({
-      success: true,
-      userId: found.match.staff_id,
-      role: found.role,
-      username: found.match.username,
-    });
-  }
-
-  return res.status(400).json({ message: "Invalid login type" });
-});
-
-// ===================
-// PATIENT ROUTES
-// ===================
-app.get("/api/patients", (req, res) => {
-  res.json(patients);
-});
-
-app.get("/api/patients/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const patient = patients.find((p) => p.patient_id === id);
-  if (!patient) return res.status(404).json({ message: "Patient not found" });
-  res.json(patient);
-});
-
-app.post("/api/patients", (req, res) => {
-  const { first_name, last_name, email, phone, dob, gender, insurance } =
-    req.body;
-
-  if (
-    !first_name ||
-    !last_name ||
-    !email ||
-    !phone ||
-    !dob ||
-    !gender ||
-    !insurance
-  ) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
-  const newPatient = {
-    patient_id: nextPatientId++,
-    first_name,
-    last_name,
-    email,
-    phone,
-    dob,
-    gender,
-    insurance,
-  };
-
-  patients.push(newPatient);
-  res.json({ success: true, patient: newPatient });
-});
-
-app.put("/api/patients/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = patients.findIndex((p) => p.patient_id === id);
-  if (index === -1)
-    return res.status(404).json({ message: "Patient not found" });
-
-  patients[index] = { ...patients[index], ...req.body };
-  res.json({ success: true, patient: patients[index] });
-});
-
-app.delete("/api/patients/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  patients = patients.filter((p) => p.patient_id !== id);
-  res.json({ success: true });
-});
-
-// ===================
-// DOCTOR ROUTES
-// ===================
-app.get("/api/doctors", (req, res) => {
-  res.json(doctors);
-});
-
-app.get("/api/doctors/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const doctor = doctors.find((d) => d.staff_id === id);
-  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
-  res.json(doctor);
-});
-
-app.post("/api/doctors", (req, res) => {
-  const {
-    license_no,
-    first_name,
-    last_name,
-    email,
-    username,
-    password,
-    specialty,
-  } = req.body;
-
-  if (
-    !license_no ||
-    !first_name ||
-    !last_name ||
-    !email ||
-    !username ||
-    !password ||
-    !specialty
-  ) {
-    return res.status(400).json({ success: false, message: "Missing fields" });
-  }
-
-  const newDoctor = {
-    staff_id: nextStaffId++,
-    license_no,
-    first_name,
-    last_name,
-    email,
-    username,
-    password,
-    specialty,
-  };
-
-  doctors.push(newDoctor);
-  res.json({ success: true, doctor: newDoctor });
-});
-
-app.put("/api/doctors/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = doctors.findIndex((d) => d.staff_id === id);
-  if (index === -1)
-    return res.status(404).json({ message: "Doctor not found" });
-
-  const updated = { ...doctors[index], ...req.body };
-  doctors[index] = updated;
-  res.json({ success: true, doctor: updated });
-});
-
-app.delete("/api/doctors/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  doctors = doctors.filter((d) => d.staff_id !== id);
-  res.json({ success: true });
-});
-
-app.get("/api/doctors/:id/schedule", (req, res) => {
-  const id = parseInt(req.params.id);
-  const doctor = doctors.find((d) => d.staff_id === id);
-  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
-  res.json(doctor.schedule);
-});
-
-app.get("/api/doctors/:id/availability", (req, res) => {
-  const doctorId = parseInt(req.params.id);
-  const { date, length } = req.query;
-
-  if (!date || !length) {
-    return res.status(400).json({ message: "Missing date or length." });
-  }
-
-  const doctor = doctors.find((d) => d.staff_id === doctorId);
-  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
-
-  const dayName = new Date(date).toLocaleDateString("en-US", {
-    weekday: "long",
-  });
-  if (!doctor.schedule.days.includes(dayName)) {
-    return res.json([]); // Doctor not working that day
-  }
-
-  const [sh, sm] = doctor.schedule.startTime.split(":").map(Number);
-  const [eh, em] = doctor.schedule.endTime.split(":").map(Number);
-  const scheduleStart = sh * 60 + sm;
-  const scheduleEnd = eh * 60 + em;
-  const step = parseInt(length);
-
-  // Generate all possible time slots
-  const slots = [];
-  for (let time = scheduleStart; time + step <= scheduleEnd; time += step) {
-    slots.push(time);
-  }
-
-  // Get this doctor's appointments for that date
-  const dayAppointments = appointments.filter(
-    (a) =>
-      a.doctorId === doctorId &&
-      a.status !== "Cancelled" &&
-      a.dateTime.startsWith(date)
-  );
-
-  const isOverlapping = (slotStart) => {
-    const slotEnd = slotStart + step;
-
-    return dayAppointments.some((a) => {
-      const aStart = new Date(a.dateTime);
-      const aStartMin = aStart.getHours() * 60 + aStart.getMinutes();
-      const aEndMin = aStartMin + a.length;
-
-      return !(slotEnd <= aStartMin || slotStart >= aEndMin);
-    });
-  };
-
-  const availableSlots = slots
-    .filter((t) => !isOverlapping(t))
-    .map((t) => {
-      const hour = Math.floor(t / 60)
-        .toString()
-        .padStart(2, "0");
-      const minute = (t % 60).toString().padStart(2, "0");
-      return `${hour}:${minute}`;
-    });
-
-  res.json(availableSlots);
-});
-
-app.get("/api/doctors/:id/patients", (req, res) => {
-  const id = parseInt(req.params.id);
-  const doctor = doctors.find((d) => d.staff_id === id);
-  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
-
-  const doctorPatients = patients.filter((p) =>
-    doctor.patients.includes(p.patient_id)
-  );
-  res.json(doctorPatients);
-});
-
-// ===================
-// APPOINTMENT ROUTES
-// ===================
-app.get("/api/appointments", (req, res) => {
-  res.json(appointments);
-});
-
-app.post("/api/appointments", (req, res) => {
-  const {
-    patientId,
-    doctorId,
-    dateTime,
-    length,
-    status = "Scheduled",
-  } = req.body;
-
-  if (!patientId || !doctorId || !dateTime || !length) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-
-  const doctor = doctors.find((d) => d.staff_id === doctorId);
-  if (!doctor) return res.status(404).json({ message: "Doctor not found" });
-
-  const dt = new Date(dateTime);
-  const dayName = dt.toLocaleDateString("en-US", { weekday: "long" });
-  const time = dt.toTimeString().slice(0, 5); // "HH:MM"
-
-  // Validate against doctor's working days
-  if (!doctor.schedule.days.includes(dayName)) {
-    return res
-      .status(400)
-      .json({ message: "Doctor not available on this day." });
-  }
-
-  // Validate time range
-  const [h, m] = time.split(":").map(Number);
-  const [sh, sm] = doctor.schedule.startTime.split(":").map(Number);
-  const [eh, em] = doctor.schedule.endTime.split(":").map(Number);
-
-  const appointmentStart = h * 60 + m;
-  const appointmentEnd = appointmentStart + parseInt(length);
-  const scheduleStart = sh * 60 + sm;
-  const scheduleEnd = eh * 60 + em;
-
-  if (appointmentStart < scheduleStart || appointmentEnd > scheduleEnd) {
-    return res
-      .status(400)
-      .json({ message: "Time is outside doctor's working hours." });
-  }
-
-  // Check for overlapping appointments
-  const conflict = appointments.find(
-    (a) =>
-      a.doctorId === doctorId &&
-      a.status !== "Cancelled" &&
-      Math.abs(new Date(a.dateTime) - dt) < a.length * 60000
-  );
-
-  if (conflict) {
-    return res
-      .status(400)
-      .json({ message: "Doctor already has an appointment at this time." });
-  }
-
-  const newAppointment = {
-    id: appointments.length + 1,
-    patientId,
-    doctorId,
-    dateTime,
-    length: parseInt(length),
-    status,
-  };
-
-  appointments.push(newAppointment);
-  res.json({ success: true, appointment: newAppointment });
-});
-
-app.put("/api/appointments/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const index = appointments.findIndex((a) => a.id === id);
-  if (index === -1)
-    return res.status(404).json({ message: "Appointment not found" });
-
-  appointments[index] = { ...appointments[index], ...req.body };
-  res.json({ success: true, appointment: appointments[index] });
-});
-
-app.get("/api/doctors/:id/appointments", (req, res) => {
-  const doctorId = parseInt(req.params.id);
-  const doctorAppointments = appointments.filter(
-    (a) => a.doctorId === doctorId
-  );
-  res.json(doctorAppointments);
-});
-
-// Room routes
-
-app.get("/api/rooms", (req, res) => {
-  res.json(rooms);
-});
-
-app.get("/api/rooms/:room_no", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  const room = rooms.find((r) => r.room_no === roomNo);
-  if (!room) return res.status(404).json({ message: "Room not found" });
-  res.json(room);
-});
-
-app.post("/api/rooms", (req, res) => {
-  const { room_no, type, capacity } = req.body;
-  if (!room_no || !type || !capacity) {
-    return res.status(400).json({ message: "Missing fields" });
-  }
-  const exists = rooms.find((r) => r.room_no === parseInt(room_no));
-  if (exists) return res.status(409).json({ message: "Room already exists" });
-
-  const newRoom = {
-    room_no: parseInt(room_no),
-    type,
-    capacity: parseInt(capacity),
-  };
-  rooms.push(newRoom);
-  res.json({ success: true, room: newRoom });
-});
-
-app.put("/api/rooms/:room_no", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  const index = rooms.findIndex((r) => r.room_no === roomNo);
-  if (index === -1) return res.status(404).json({ message: "Room not found" });
-
-  const updated = { ...rooms[index], ...req.body };
-  rooms[index] = updated;
-  res.json({ success: true, room: updated });
-});
-
-app.delete("/api/rooms/:room_no", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  rooms = rooms.filter((r) => r.room_no !== roomNo);
-  res.json({ success: true });
-});
-
-// Get all patients in a room
-app.get("/api/rooms/:room_no/patients", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  const assignedPatientIds = roomAssignments
-    .filter((a) => a.room_no === roomNo)
-    .map((a) => a.patient_id);
-
-  const assignedPatients = patients.filter((p) =>
-    assignedPatientIds.includes(p.patient_id)
-  );
-  res.json(assignedPatients);
-});
-
-// Assign a patient to a room
-app.post("/api/rooms/:room_no/patients", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  const { patient_id } = req.body;
-
-  if (!patient_id)
-    return res.status(400).json({ message: "Missing patient_id" });
-
-  const alreadyAssigned = roomAssignments.find(
-    (a) => a.room_no === roomNo && a.patient_id === patient_id
-  );
-  if (alreadyAssigned)
-    return res.status(409).json({ message: "Already assigned" });
-
-  roomAssignments.push({ room_no: roomNo, patient_id });
-  res.json({ success: true });
-});
-
-// Unassign patient from a room
-app.delete("/api/rooms/:room_no/patients/:patient_id", (req, res) => {
-  const roomNo = parseInt(req.params.room_no);
-  const patientId = parseInt(req.params.patient_id);
-
-  roomAssignments = roomAssignments.filter(
-    (a) => !(a.room_no === roomNo && a.patient_id === patientId)
-  );
-
-  res.json({ success: true });
+const db = mysql.createConnection({
+  host: "localhost",
+  user: "root",
+  password: "",
+  database: "healthpoint",
 });
 
 // ===================
@@ -829,127 +28,953 @@ app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
 
-// Triage routes
-app.get("/api/triage", (req, res) => {
-  res.json(triageData);
+// ===================
+// PATIENT ROUTES
+// ===================
+app.get("/api/patients", (req, res) => {
+  db.query("SELECT * FROM Patient", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
-app.post("/api/triage", (req, res) => {
-  const { patient_id, bp, heart_rate, rating } = req.body;
+app.get("/api/patients/:id", (req, res) => {
+  db.query(
+    "SELECT * FROM Patient WHERE patient_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Patient not found" });
+      res.json(results[0]);
+    }
+  );
+});
 
-  if (!patient_id || !bp || !heart_rate || !rating) {
-    return res.status(400).json({ message: "Missing fields." });
+app.post("/api/patients", (req, res) => {
+  const {
+    username,
+    password,
+    first_name,
+    last_name,
+    email,
+    phone,
+    dob,
+    gender,
+    insurance,
+    status,
+    doctor_id,
+  } = req.body;
+  db.query(
+    "INSERT INTO Patient (username, password, first_name, last_name, email, phone, dob, gender, insurance, status, doctor_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+    [
+      username,
+      password,
+      first_name,
+      last_name,
+      email,
+      phone,
+      dob,
+      gender,
+      insurance,
+      status || "outpatient",
+      doctor_id || null,
+    ],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, patient_id: result.insertId });
+    }
+  );
+});
+
+app.put("/api/patients/:id", (req, res) => {
+  db.query(
+    "UPDATE Patient SET ? WHERE patient_id = ?",
+    [req.body, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+app.delete("/api/patients/:id", (req, res) => {
+  db.query(
+    "DELETE FROM Patient WHERE patient_id = ?",
+    [req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Admit a patient (assigns room and sets status)
+app.post("/api/patients/:id/admit", (req, res) => {
+  const id = parseInt(req.params.id);
+  db.query(
+    "SELECT * FROM Patient WHERE patient_id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Patient not found" });
+
+      const patient = results[0];
+      if (patient.status === "inpatient") {
+        return res
+          .status(400)
+          .json({ message: "Patient is already admitted." });
+      }
+
+      db.query(
+        `SELECT r.room_no, r.type FROM Room r
+       LEFT JOIN RoomAssignment ra ON r.room_no = ra.room_no
+       GROUP BY r.room_no
+       HAVING COUNT(ra.patient_id) < r.capacity`,
+        [],
+        (err2, rooms) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          if (rooms.length === 0)
+            return res.status(400).json({ message: "No rooms available." });
+
+          const preferred =
+            rooms.find((r) => r.type === "Waiting Room") || rooms[0];
+
+          db.query(
+            "INSERT INTO RoomAssignment (room_no, patient_id) VALUES (?, ?)",
+            [preferred.room_no, id],
+            (err3) => {
+              if (err3) return res.status(500).json({ error: err3.message });
+
+              db.query(
+                "UPDATE Patient SET status = 'inpatient' WHERE patient_id = ?",
+                [id],
+                (err4) => {
+                  if (err4)
+                    return res.status(500).json({ error: err4.message });
+                  res.json({ success: true, room_no: preferred.room_no });
+                }
+              );
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// Discharge a patient (removes room + sets outpatient)
+app.post("/api/patients/:id/discharge", (req, res) => {
+  const id = parseInt(req.params.id);
+  db.query(
+    "SELECT * FROM Patient WHERE patient_id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Patient not found" });
+
+      const patient = results[0];
+      if (patient.status !== "inpatient") {
+        return res
+          .status(400)
+          .json({ message: "Patient is not currently admitted." });
+      }
+
+      db.query(
+        "DELETE FROM RoomAssignment WHERE patient_id = ?",
+        [id],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          db.query(
+            "UPDATE Patient SET status = 'outpatient' WHERE patient_id = ?",
+            [id],
+            (err3) => {
+              if (err3) return res.status(500).json({ error: err3.message });
+              res.json({ success: true });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// ===================
+// DOCTOR ROUTES
+// ===================
+
+app.get("/api/doctors/:id/patients", (req, res) => {
+  const doctorId = parseInt(req.params.id);
+
+  db.query(
+    "SELECT * FROM Patient WHERE doctor_id = ?",
+    [doctorId],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// Get all doctors
+app.get("/api/doctors", (req, res) => {
+  const query = `
+    SELECT s.staff_id, s.username, s.first_name, s.last_name, s.email, s.role,
+           d.specialty, d.license_no, d.schedule
+    FROM Staff s
+    JOIN Doctor d ON s.staff_id = d.staff_id
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Get doctor by ID
+app.get("/api/doctors/:id", (req, res) => {
+  const id = req.params.id;
+  const sql = `
+    SELECT s.*, d.license_no, d.specialty, d.schedule
+    FROM Staff s
+    JOIN Doctor d ON s.staff_id = d.staff_id
+    WHERE s.staff_id = ?
+  `;
+  db.query(sql, [id], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0)
+      return res.status(404).json({ message: "Doctor not found" });
+    res.json(results[0]);
+  });
+});
+
+// Get doctor schedule
+app.get("/api/doctors/:id/schedule", (req, res) => {
+  const id = parseInt(req.params.id);
+  db.query(
+    "SELECT schedule FROM Doctor WHERE staff_id = ?",
+    [id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Doctor not found" });
+
+      const schedule = JSON.parse(results[0].schedule || "{}");
+      res.json(schedule);
+    }
+  );
+});
+
+// Get doctor availability for a given day + time slot
+app.get("/api/doctors/:id/availability", (req, res) => {
+  const doctorId = parseInt(req.params.id);
+  const { date, length } = req.query;
+
+  if (!date || !length) {
+    return res.status(400).json({ message: "Missing date or length." });
   }
 
-  const newTriage = { patient_id, bp, heart_rate, rating };
-  triageData.push(newTriage);
-  res.json({ success: true, triage: newTriage });
+  const scheduleQuery = "SELECT schedule FROM Doctor WHERE staff_id = ?";
+  db.query(scheduleQuery, [doctorId], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (results.length === 0)
+      return res.status(404).json({ message: "Doctor not found" });
+
+    const schedule = JSON.parse(results[0].schedule);
+    const dayName = new Date(date).toLocaleDateString("en-US", {
+      weekday: "long",
+    });
+
+    if (!schedule.days.includes(dayName)) return res.json([]);
+
+    const [sh, sm] = schedule.startTime.split(":").map(Number);
+    const [eh, em] = schedule.endTime.split(":").map(Number);
+    const scheduleStart = sh * 60 + sm;
+    const scheduleEnd = eh * 60 + em;
+    const step = parseInt(length);
+
+    const allSlots = [];
+    for (let time = scheduleStart; time + step <= scheduleEnd; time += step) {
+      const hour = String(Math.floor(time / 60)).padStart(2, "0");
+      const minute = String(time % 60).padStart(2, "0");
+      allSlots.push({ minutes: time, label: `${hour}:${minute}` });
+    }
+
+    db.query(
+      "SELECT * FROM Appointment WHERE doctor_id = ? AND DATE(date_time) = ? AND status != 'Cancelled'",
+      [doctorId, date],
+      (err2, appointments) => {
+        if (err2) return res.status(500).json({ error: err2.message });
+
+        const unavailable = appointments.map((a) => {
+          const start = new Date(a.date_time);
+          const startMin = start.getHours() * 60 + start.getMinutes();
+          const endMin = startMin + a.length;
+          return [startMin, endMin];
+        });
+
+        const isAvailable = (start) => {
+          const end = start + step;
+          return !unavailable.some(([s, e]) => !(end <= s || start >= e));
+        };
+
+        const availableSlots = allSlots
+          .filter((s) => isAvailable(s.minutes))
+          .map((s) => s.label);
+
+        res.json(availableSlots);
+      }
+    );
+  });
 });
 
-// ========== Patient Records API ==========
+// add new doc
+app.post("/api/doctors", (req, res) => {
+  const {
+    username,
+    password,
+    first_name,
+    last_name,
+    email,
+    license_no,
+    specialty,
+  } = req.body;
+
+  db.query(
+    "INSERT INTO Staff (username, password, first_name, last_name, email, role) VALUES (?, ?, ?, ?, ?, 'doctor')",
+    [username, password, first_name, last_name, email],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      const staffId = result.insertId;
+
+      const defaultSchedule = JSON.stringify({
+        days: ["Monday", "Wednesday", "Friday"],
+        startTime: "09:00",
+        endTime: "17:00",
+      });
+
+      db.query(
+        "INSERT INTO Doctor (staff_id, license_no, specialty, schedule) VALUES (?, ?, ?, ?)",
+        [staffId, license_no, specialty, defaultSchedule],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({ success: true, staff_id: staffId });
+        }
+      );
+    }
+  );
+});
+
+// edit doctor
+app.put("/api/doctors/:id", (req, res) => {
+  const staffId = req.params.id;
+  const {
+    first_name,
+    last_name,
+    email,
+    username,
+    password,
+    license_no,
+    specialty,
+  } = req.body;
+
+  db.query(
+    "UPDATE Staff SET username = ?, password = ?, first_name = ?, last_name = ?, email = ? WHERE staff_id = ?",
+    [username, password, first_name, last_name, email, staffId],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      db.query(
+        "UPDATE Doctor SET license_no = ?, specialty = ? WHERE staff_id = ?",
+        [license_no, specialty, staffId],
+        (err2) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+          res.json({ success: true });
+        }
+      );
+    }
+  );
+});
+
+// delete doctor
+app.delete("/api/doctors/:id", (req, res) => {
+  const staffId = req.params.id;
+
+  db.query("DELETE FROM Doctor WHERE staff_id = ?", [staffId], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+
+    db.query("DELETE FROM Staff WHERE staff_id = ?", [staffId], (err2) => {
+      if (err2) return res.status(500).json({ error: err2.message });
+      res.json({ success: true });
+    });
+  });
+});
+
+// ===================
+// APPOINTMENT ROUTES
+// ===================
+
+// Get all appointments
+app.get("/api/appointments", (req, res) => {
+  db.query("SELECT * FROM Appointment", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Get all appointments for a specific doctor
+app.get("/api/appointments/doctor/:id", (req, res) => {
+  db.query(
+    "SELECT * FROM Appointment WHERE doctor_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// Validated appointment creation
+app.post("/api/appointments", (req, res) => {
+  const {
+    patientId,
+    doctorId,
+    dateTime,
+    length,
+    status = "Scheduled",
+  } = req.body;
+  if (!patientId || !doctorId || !dateTime || !length)
+    return res.status(400).json({ message: "Missing fields" });
+
+  const date = new Date(dateTime);
+  const dayName = date.toLocaleDateString("en-US", { weekday: "long" });
+  const time = date.toTimeString().slice(0, 5);
+  const [hour, minute] = time.split(":").map(Number);
+  const requestStart = hour * 60 + minute;
+  const requestEnd = requestStart + parseInt(length);
+
+  db.query(
+    "SELECT schedule FROM Doctor WHERE staff_id = ?",
+    [doctorId],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Doctor not found" });
+
+      const schedule = JSON.parse(results[0].schedule);
+      if (!schedule.days.includes(dayName)) {
+        return res
+          .status(400)
+          .json({ message: "Doctor not available on this day." });
+      }
+
+      const [sh, sm] = schedule.startTime.split(":").map(Number);
+      const [eh, em] = schedule.endTime.split(":").map(Number);
+      const scheduleStart = sh * 60 + sm;
+      const scheduleEnd = eh * 60 + em;
+
+      if (requestStart < scheduleStart || requestEnd > scheduleEnd) {
+        return res.status(400).json({ message: "Outside working hours." });
+      }
+
+      db.query(
+        "SELECT * FROM Appointment WHERE doctor_id = ? AND DATE(date_time) = ? AND status != 'Cancelled'",
+        [doctorId, date.toISOString().split("T")[0]],
+        (err2, rows) => {
+          if (err2) return res.status(500).json({ error: err2.message });
+
+          const overlaps = rows.some((a) => {
+            const aStart = new Date(a.date_time);
+            const startMin = aStart.getHours() * 60 + aStart.getMinutes();
+            const endMin = startMin + a.length;
+            return !(requestEnd <= startMin || requestStart >= endMin);
+          });
+
+          if (overlaps) {
+            return res
+              .status(400)
+              .json({ message: "Time slot is already booked." });
+          }
+
+          db.query(
+            "INSERT INTO Appointment (patient_id, doctor_id, date_time, length, status) VALUES (?, ?, ?, ?, ?)",
+            [patientId, doctorId, dateTime, length, status],
+            (err3, result) => {
+              if (err3) return res.status(500).json({ error: err3.message });
+              res.json({ success: true, appointment_id: result.insertId });
+            }
+          );
+        }
+      );
+    }
+  );
+});
+
+// Reschedule/cancel
+app.put("/api/appointments/:id", (req, res) => {
+  const id = parseInt(req.params.id);
+  const updates = {};
+
+  if (req.body.status) updates.status = req.body.status;
+  if (req.body.date_time) updates.date_time = req.body.date_time;
+  if (req.body.length) updates.length = req.body.length;
+
+  if (Object.keys(updates).length === 0) {
+    return res.status(400).json({ message: "No valid fields to update." });
+  }
+
+  db.query(
+    "UPDATE Appointment SET ? WHERE appointment_id = ?",
+    [updates, id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// ===================
+// BILLING ROUTES
+// ===================
+
+// Get all bills
+app.get("/api/bills", (req, res) => {
+  db.query("SELECT * FROM Bill", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Get all bills for a patient
+app.get("/api/bills/patient/:id", (req, res) => {
+  db.query(
+    "SELECT * FROM Bill WHERE patient_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// Get single bill by ID
+app.get("/api/bills/:id", (req, res) => {
+  db.query(
+    "SELECT * FROM Bill WHERE bill_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Bill not found" });
+      res.json(results[0]);
+    }
+  );
+});
+
+// Create a new bill
+app.post("/api/bills", (req, res) => {
+  const {
+    patient_id,
+    appointment_id,
+    amount,
+    description,
+    status = "Unpaid",
+  } = req.body;
+  const issued_date = new Date().toISOString().slice(0, 19).replace("T", " ");
+  db.query(
+    "INSERT INTO Bill (patient_id, appointment_id, amount, description, status, issued_date) VALUES (?, ?, ?, ?, ?, ?)",
+    [
+      patient_id,
+      appointment_id || null,
+      amount,
+      description,
+      status,
+      issued_date,
+    ],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, bill_id: result.insertId });
+    }
+  );
+});
+
+// Update bill (e.g. mark as paid)
+app.put("/api/bills/:id", (req, res) => {
+  db.query(
+    "UPDATE Bill SET ? WHERE bill_id = ?",
+    [req.body, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Delete bill (optional)
+app.delete("/api/bills/:id", (req, res) => {
+  db.query("DELETE FROM Bill WHERE bill_id = ?", [req.params.id], (err) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json({ success: true });
+  });
+});
+
+// ===================
+// RECORD ROUTES
+// ===================
 
 // Get all records
 app.get("/api/records", (req, res) => {
-  res.json(records);
+  db.query("SELECT * FROM Record", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 // Get records by patient ID
 app.get("/api/records/patient/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const result = records.filter((r) => r.patient_id === id);
-  res.json(result);
+  db.query(
+    "SELECT * FROM Record WHERE patient_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
-// Add a new patient record
+// Add a new record
 app.post("/api/records", (req, res) => {
   const { patient_id, doctor_id, date, symptoms, diagnosis, notes } = req.body;
-
   if (!patient_id || !doctor_id || !date || !symptoms || !diagnosis) {
     return res.status(400).json({ message: "Missing required fields" });
   }
 
-  const newRecord = {
-    record_id: nextRecordId++,
-    patient_id,
-    doctor_id,
-    date,
-    symptoms,
-    diagnosis,
-    notes,
-  };
-
-  records.push(newRecord);
-  res.json({ success: true, record: newRecord });
+  db.query(
+    "INSERT INTO Record (patient_id, doctor_id, date, symptoms, diagnosis, notes) VALUES (?, ?, ?, ?, ?, ?)",
+    [patient_id, doctor_id, date, symptoms, diagnosis, notes || null],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, record_id: result.insertId });
+    }
+  );
 });
 
-// ========== Patient Tests API ==========
+// ===================
+// TEST ROUTES
+// ===================
+
+// Fetch completed tests
+app.get("/api/tests/completed", (req, res) => {
+  db.query(
+    "SELECT * FROM Test WHERE result IS NOT NULL AND TRIM(result) != ''",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
 
 // Get all tests
 app.get("/api/tests", (req, res) => {
-  res.json(tests);
+  db.query("SELECT * FROM Test", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });
 
 // Get tests by patient ID
 app.get("/api/tests/patient/:id", (req, res) => {
-  const id = parseInt(req.params.id);
-  const result = tests.filter((t) => t.patient_id === id);
-  res.json(result);
+  db.query(
+    "SELECT * FROM Test WHERE patient_id = ?",
+    [req.params.id],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// Get all tests with no result (pending)
+app.get("/api/tests/pending", (req, res) => {
+  db.query(
+    "SELECT * FROM Test WHERE result IS NULL OR TRIM(result) = ''",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
 });
 
 // Add a test
 app.post("/api/tests", (req, res) => {
   const { patient_id, doctor_id, date, test_name, result } = req.body;
-
-  //console.log("TEST SUBMISSION:", req.body);
-
   if (!patient_id || !doctor_id || !date || !test_name) {
     return res.status(400).json({ message: "Missing required fields." });
   }
 
-  const newTest = {
-    test_id: nextTestId++,
-    patient_id,
-    doctor_id,
-    date,
-    test_name,
-    result: result || "Pending",
-  };
-
-  tests.push(newTest);
-  res.json({ success: true, test: newTest });
-});
-
-// Get all tests with no result (pending)
-app.get("/api/tests/pending", (req, res) => {
-  const pending = tests.filter((t) => !t.result || t.result.trim() === "");
-  res.json(pending);
-});
-
-// Get all completed tests
-app.get("/api/tests/completed", (req, res) => {
-  const done = tests.filter((t) => t.result && t.result.trim() !== "");
-  res.json(done);
+  db.query(
+    "INSERT INTO Test (patient_id, doctor_id, date, test_name, result) VALUES (?, ?, ?, ?, ?)",
+    [patient_id, doctor_id, date, test_name, result || null],
+    (err, result) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true, test_id: result.insertId });
+    }
+  );
 });
 
 // Update a test result + assign labtech_id
 app.put("/api/tests/:id", (req, res) => {
-  const id = parseInt(req.params.id);
   const { result, labtech_id } = req.body;
-
-  const index = tests.findIndex((t) => t.test_id === id);
-  if (index === -1) return res.status(404).json({ message: "Test not found" });
-
   if (!result || !labtech_id) {
     return res.status(400).json({ message: "Missing result or labtech_id" });
   }
 
-  tests[index].result = result;
-  tests[index].labtech_id = labtech_id;
-
-  res.json({ success: true, test: tests[index] });
+  db.query(
+    "UPDATE Test SET result = ?, labtech_id = ? WHERE test_id = ?",
+    [result, labtech_id, req.params.id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
 });
 
-// lab tech route
+// fetch completed tests
+app.get("/api/tests/completed", (req, res) => {
+  db.query(
+    "SELECT * FROM Test WHERE result IS NOT NULL AND TRIM(result) != ''",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
 app.get("/api/labtechs", (req, res) => {
-  res.json(labtechs);
+  db.query(
+    "SELECT * FROM Staff WHERE role = 'labtechnician'",
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json(results);
+    }
+  );
+});
+
+// ===================
+// TRIAGE ROUTES
+// ===================
+
+// Get all triage entries
+app.get("/api/triage", (req, res) => {
+  db.query("SELECT * FROM Triage", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Record or update triage
+app.post("/api/triage", (req, res) => {
+  const { patient_id, bp, heart_rate, rating } = req.body;
+  if (!patient_id || !bp || !heart_rate || !rating) {
+    return res.status(400).json({ message: "Missing fields." });
+  }
+
+  db.query(
+    "REPLACE INTO Triage (patient_id, bp, heart_rate, rating) VALUES (?, ?, ?, ?)",
+    [patient_id, bp, heart_rate, rating],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// ===================
+// ROOM ROUTES
+// ===================
+
+// Get all rooms
+app.get("/api/rooms", (req, res) => {
+  db.query("SELECT * FROM Room", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Create new room
+app.post("/api/rooms", (req, res) => {
+  const { room_no, type, capacity } = req.body;
+  if (!room_no || !type || !capacity) {
+    return res.status(400).json({ message: "Missing fields" });
+  }
+
+  db.query(
+    "INSERT INTO Room (room_no, type, capacity) VALUES (?, ?, ?)",
+    [room_no, type, capacity],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Update room info
+app.put("/api/rooms/:room_no", (req, res) => {
+  db.query(
+    "UPDATE Room SET ? WHERE room_no = ?",
+    [req.body, req.params.room_no],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Delete room
+app.delete("/api/rooms/:room_no", (req, res) => {
+  db.query(
+    "DELETE FROM Room WHERE room_no = ?",
+    [req.params.room_no],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Get all patients assigned to a room
+app.get("/api/rooms/:room_no/patients", (req, res) => {
+  const query = `
+    SELECT p.* FROM RoomAssignment ra
+    JOIN Patient p ON ra.patient_id = p.patient_id
+    WHERE ra.room_no = ?
+  `;
+  db.query(query, [req.params.room_no], (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
+});
+
+// Assign patient to room
+app.post("/api/rooms/:room_no/patients", (req, res) => {
+  const { patient_id } = req.body;
+  if (!patient_id)
+    return res.status(400).json({ message: "Missing patient_id" });
+
+  db.query(
+    "INSERT INTO RoomAssignment (room_no, patient_id) VALUES (?, ?)",
+    [req.params.room_no, patient_id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Remove patient from room
+app.delete("/api/rooms/:room_no/patients/:patient_id", (req, res) => {
+  db.query(
+    "DELETE FROM RoomAssignment WHERE room_no = ? AND patient_id = ?",
+    [req.params.room_no, req.params.patient_id],
+    (err) => {
+      if (err) return res.status(500).json({ error: err.message });
+      res.json({ success: true });
+    }
+  );
+});
+
+// Room occupancy summary
+app.get("/api/rooms/assignments", (req, res) => {
+  const query = `
+    SELECT r.room_no, COUNT(ra.patient_id) AS occupancy
+    FROM Room r
+    LEFT JOIN RoomAssignment ra ON r.room_no = ra.room_no
+    GROUP BY r.room_no
+  `;
+  db.query(query, (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    const summary = {};
+    results.forEach((r) => (summary[r.room_no] = r.occupancy));
+    res.json(summary);
+  });
+});
+
+// Get a single room
+app.get("/api/rooms/:room_no", (req, res) => {
+  db.query(
+    "SELECT * FROM Room WHERE room_no = ?",
+    [req.params.room_no],
+    (err, results) => {
+      if (err) return res.status(500).json({ error: err.message });
+      if (results.length === 0)
+        return res.status(404).json({ message: "Room not found" });
+      res.json(results[0]);
+    }
+  );
+});
+
+// ===================
+// LOGIN ROUTE
+// ===================
+app.post("/api/login", (req, res) => {
+  const { username, password, loginType } = req.body;
+
+  if (loginType === "patient") {
+    db.query(
+      "SELECT * FROM Patient WHERE username = ? AND password = ?",
+      [username, password],
+      (err, results) => {
+        if (err) return res.status(500).json({ error: err.message });
+        if (results.length === 0)
+          return res.status(401).json({ message: "Invalid credentials" });
+
+        const patient = results[0];
+        res.json({
+          success: true,
+          userId: patient.patient_id,
+          role: "patient",
+          username: patient.username,
+        });
+      }
+    );
+  } else if (loginType === "staff") {
+    const roles = ["doctor", "nurse", "receptionist", "labtechnician"];
+    const tryRole = (i = 0) => {
+      if (i >= roles.length)
+        return res.status(401).json({ message: "Invalid credentials" });
+
+      const role = roles[i];
+      db.query(
+        "SELECT * FROM Staff WHERE username = ? AND password = ? AND role = ?",
+        [username, password, role],
+        (err, results) => {
+          if (err) return res.status(500).json({ error: err.message });
+          if (results.length > 0) {
+            const staff = results[0];
+            res.json({
+              success: true,
+              userId: staff.staff_id,
+              role,
+              username: staff.username,
+            });
+          } else {
+            tryRole(i + 1);
+          }
+        }
+      );
+    };
+    tryRole();
+  } else {
+    res.status(400).json({ message: "Invalid login type" });
+  }
+});
+
+app.get("/api/roomassignments", (req, res) => {
+  db.query("SELECT * FROM RoomAssignment", (err, results) => {
+    if (err) return res.status(500).json({ error: err.message });
+    res.json(results);
+  });
 });

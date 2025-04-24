@@ -11,6 +11,8 @@ const PatientView = ({ user, setUser }) => {
     setTimeout(() => navigate("/"), 0);
   };
 
+  if (!user) return null;
+
   return (
     <div
       style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}
@@ -27,7 +29,7 @@ const PatientView = ({ user, setUser }) => {
       >
         <div>
           <h2>Patient Portal</h2>
-          <p>Welcome, {user?.username}</p>
+          <p>Welcome, {user.username}</p>
         </div>
         <button onClick={handleLogout} style={{ padding: "0.5rem 1rem" }}>
           Logout

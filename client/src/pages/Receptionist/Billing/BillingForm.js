@@ -31,8 +31,7 @@ const BillingForm = () => {
     if (isEdit) {
       axios.get(`http://localhost:6969/api/bills/${id}`).then((res) => {
         setForm(res.data);
-        const patient = res.data.patient_id;
-        setSelectedPatient(patient);
+        setSelectedPatient(res.data.patient_id);
       });
     }
   }, [id, isEdit]);
@@ -49,16 +48,35 @@ const BillingForm = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!form.patient_id || !form.amount || !form.description)
+    if (!form.patient_id || !form.amount || !form.description) {
       return alert("Missing required fields");
-
-    if (isEdit) {
-      await axios.put(`http://localhost:6969/api/bills/${id}`, form);
-    } else {
-      await axios.post("http://localhost:6969/api/bills", form);
     }
 
-    navigate("/receptionist/billing");
+    // 🛠 Clean values for submission
+    const { issued_date, ...cleanForm } = form;
+
+    const submission = {
+      ...cleanForm,
+      amount: Number(cleanForm.amount),
+      appointment_id: cleanForm.appointment_id
+        ? Number(cleanForm.appointment_id)
+        : null,
+    };
+
+    try {
+      if (isEdit) {
+        await axios.put(`http://localhost:6969/api/bills/${id}`, submission);
+      } else {
+        await axios.post("http://localhost:6969/api/bills", submission);
+      }
+
+      navigate("/receptionist/billing");
+    } catch (err) {
+      console.error("Billing error:", err);
+      alert(
+        "Failed to save bill: " + (err.response?.data?.error || err.message)
+      );
+    }
   };
 
   const handleCancel = () => {
@@ -119,8 +137,8 @@ const BillingForm = () => {
           >
             <option value="">None</option>
             {appointments.map((a) => (
-              <option key={a.id} value={a.id}>
-                #{a.id} – {new Date(a.dateTime).toLocaleString()}
+              <option key={a.appointment_id} value={a.appointment_id}>
+                #{a.appointment_id} – {new Date(a.date_time).toLocaleString()}
               </option>
             ))}
           </select>

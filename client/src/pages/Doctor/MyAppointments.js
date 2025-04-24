@@ -14,9 +14,9 @@ const MyAppointments = ({ user }) => {
 
       const upcoming = appointmentsRes.data.filter(
         (a) =>
-          a.doctorId === user.userId &&
+          a.doctor_id === user.userId &&
           a.status !== "Cancelled" &&
-          new Date(a.dateTime) >= new Date()
+          new Date(a.date_time) >= new Date()
       );
 
       setAppointments(upcoming);
@@ -36,10 +36,10 @@ const MyAppointments = ({ user }) => {
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {appointments.map((a) => {
-            const patient = getPatient(a.patientId);
+            const patient = getPatient(a.patient_id);
             return (
               <li
-                key={a.id}
+                key={a.appointment_id}
                 style={{
                   border: "1px solid #ccc",
                   padding: "1rem",
@@ -50,7 +50,7 @@ const MyAppointments = ({ user }) => {
               >
                 <p>
                   <strong>Date & Time:</strong>{" "}
-                  {new Date(a.dateTime).toLocaleString()}
+                  {new Date(a.date_time).toLocaleString()}
                 </p>
                 <p>
                   <strong>Patient:</strong>{" "}
