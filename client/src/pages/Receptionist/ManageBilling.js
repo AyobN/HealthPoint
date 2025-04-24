@@ -18,9 +18,14 @@ const ManageBilling = () => {
     axios
       .get("http://localhost:6969/api/patients")
       .then((res) => setPatients(res.data));
+
     axios.get("http://localhost:6969/api/bills").then((res) => {
-      setAllBills(res.data);
-      setFilteredBills(res.data); // show all bills by default
+      const numericBills = res.data.map((b) => ({
+        ...b,
+        amount: Number(b.amount),
+      }));
+      setAllBills(numericBills);
+      setFilteredBills(numericBills); // show all bills by default
     });
   }, []);
 
@@ -42,7 +47,9 @@ const ManageBilling = () => {
     const res = await axios.get(
       `http://localhost:6969/api/bills/patient/${p.patient_id}`
     );
-    setBillsByPatient(res.data);
+    setBillsByPatient(
+      res.data.map((b) => ({ ...b, amount: Number(b.amount) }))
+    );
   };
 
   const handleBillSearch = (e) => {

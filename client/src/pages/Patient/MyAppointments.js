@@ -26,9 +26,9 @@ const MyAppointments = ({ user }) => {
 
       const futureAppointments = appointmentsRes.data.filter(
         (a) =>
-          a.patientId === patientMatch.patient_id &&
+          a.patient_id === patientMatch.patient_id &&
           a.status !== "Cancelled" &&
-          new Date(a.dateTime) >= new Date()
+          new Date(a.date_time) >= new Date()
       );
 
       setAppointments(futureAppointments);
@@ -39,7 +39,7 @@ const MyAppointments = ({ user }) => {
 
   const getDoctor = (id) => doctors.find((d) => d.staff_id === id);
 
-  if (!user) return null; // logout safety
+  if (!user) return null;
   if (!patient) return <p>Loading patient info...</p>;
 
   return (
@@ -50,10 +50,10 @@ const MyAppointments = ({ user }) => {
       ) : (
         <ul style={{ listStyle: "none", padding: 0 }}>
           {appointments.map((a) => {
-            const doctor = getDoctor(a.doctorId);
+            const doctor = getDoctor(a.doctor_id);
             return (
               <li
-                key={a.id}
+                key={a.appointment_id}
                 style={{
                   border: "1px solid #ccc",
                   padding: "1rem",
@@ -64,7 +64,7 @@ const MyAppointments = ({ user }) => {
               >
                 <p>
                   <strong>Date & Time:</strong>{" "}
-                  {new Date(a.dateTime).toLocaleString()}
+                  {new Date(a.date_time).toLocaleString()}
                 </p>
                 <p>
                   <strong>Doctor:</strong>{" "}

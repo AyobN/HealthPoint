@@ -18,7 +18,14 @@ const MyBills = ({ user }) => {
       const billsRes = await axios.get(
         `http://localhost:6969/api/bills/patient/${match.patient_id}`
       );
-      setBills(billsRes.data);
+
+      // Cast amount to number
+      const formatted = billsRes.data.map((b) => ({
+        ...b,
+        amount: Number(b.amount),
+      }));
+
+      setBills(formatted);
     };
 
     fetchBills();

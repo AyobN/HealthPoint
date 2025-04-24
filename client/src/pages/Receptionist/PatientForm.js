@@ -9,6 +9,8 @@ const PatientForm = () => {
 
   const [form, setForm] = useState({
     patient_id: "",
+    username: "",
+    password: "",
     first_name: "",
     last_name: "",
     email: "",
@@ -42,13 +44,24 @@ const PatientForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (isEdit) {
-      await axios.put(`http://localhost:6969/api/patients/${id}`, form);
-    } else {
-      await axios.post("http://localhost:6969/api/patients", form);
-    }
+    const submission = {
+      ...form,
+      doctor_id: Number(form.doctor_id) || null,
+    };
 
-    navigate("/receptionist/patients");
+    try {
+      if (isEdit) {
+        await axios.put(`http://localhost:6969/api/patients/${id}`, submission);
+      } else {
+        await axios.post("http://localhost:6969/api/patients", submission);
+      }
+      navigate("/receptionist/patients");
+    } catch (err) {
+      console.error("Submission failed:", err);
+      alert(
+        "Failed to save patient: " + (err.response?.data?.error || err.message)
+      );
+    }
   };
 
   const handleCancel = () => {
@@ -75,6 +88,25 @@ const PatientForm = () => {
             <input name="patient_id" value={form.patient_id} disabled />
           </div>
         )}
+        <div>
+          <label>Username:</label>
+          <input
+            name="username"
+            value={form.username}
+            onChange={handleChange}
+            required
+          />
+        </div>
+        <div>
+          <label>Password:</label>
+          <input
+            name="password"
+            type="password"
+            value={form.password}
+            onChange={handleChange}
+            required
+          />
+        </div>
         <div>
           <label>First Name:</label>
           <input
